@@ -1,0 +1,460 @@
+---
+title: "Data Cleaning & Exploratory Data Analysis"
+author: "Dimas_Mahesa"
+date: "December 2023"
+output: 
+  github_document:
+    toc: true
+---
+
+# Pendahuluan
+
+## Deskripsi Data
+
+Dataset [online_retail2.csv](https://archive.ics.uci.edu/ml/datasets/Online+Retail+II) berisi semua transaksi yang terjadi antara 01/12/2009 sampai dengan 09/12/2011 pada ritel online non-toko yang berbasis di Inggris. Perusahaan ini menjual peralatan hadiah unik yang sebagian besar konsumen perusahaan adalah agen grosir.
+
+## Informasi Atribut
+
+-   **InvoiceNo** : Nomor faktur (Nominal), berisi 6 digit nomor yang ditetapkan secara unik untuk setiap transaksi. Jika kode dimulai dengan huruf "C", ini menunjukkan pembatalan transaksi.
+
+-   **StockCode** : Kode produk (Nominal). berisi 5 digit nomor unik yang ditetapkan secara unik untuk setiap produk yang berbeda.
+
+-   **Description** : Nama produk (Nominal).
+
+-   **Quantity** : Jumlah setiap produk per transaksi (Numerik)
+
+-   **InvoiceDate** : Tanggal dan waktu faktur (Numerik), berisi hari dan waktu ketika transaksi dilakukan.
+
+-   **Price** : Harga satuan (Numerik), berisi harga produk per unit dalam pound sterling (£).
+
+-   **CustomerID** : Customer number (Nominal), berisi 5 digit nomor yang ditetapkan secara unik untuk setiap pelanggan.
+
+-   **Country** : Nama negara (Nominal), berisi nama negara tempat pelanggan tinggal.
+
+## Teknologi yang digunakan
+
+**Bahasa pemrograman**: R
+
+**Pustaka (Library)**: tidyverse, lubridate, DataExplorer, janitor, ggplot2, inventorize, forecast
+
+# Data Preparation & Exploration
+
+Data preparation merupakan proses mempersiapkan data yang akan digunakan dalam pemodelan. Tahap ini dimulai dengan menginput dataset dan library yang digunakan dalam pemodelan. Sedangkan data exploration merupakan tahapan yang dilakukan untuk memahami data sebelum diolah untuk proses selanjutnya dengan menggali informasi untuk melihat karakteristik dan pola yang ada di dalam data.
+
+Pada tahap ini akan mengeksplorasi data dengan tujuan mencari informasi dasar pada data untuk mengetahui apakah setiap variabel sudah memiliki tipe data yang tepat, berapa banyak nilai yang hilang (missing value), apakah terdapat nilai outlier, serta pola-pola apa saja yang terdapat dalam data.
+
+## Data Preparation
+
+Tahap ini dilakukan persiapan data yang akan digunakan dalam pemodelan yang dimulai dengan menginput dataset dan library yang digunakan dalam pemodelan.
+
+```{r message=FALSE, warning=FALSE}
+## impor library
+library(tidyverse)
+library(lubridate)
+library(DataExplorer)
+library(janitor)
+library(ggplot2)
+library(kableExtra)
+library(cluster)
+library(factoextra)
+library(ggQC)
+library(tsibble)
+library(tseries)
+library(forecast)
+
+## impor dan tampilkan dataframe secara singkat
+retail <- read_csv("../../machine_learning_approach_in_inventory_management/dataset/online_retail2.csv")
+retail
+```
+
+
+## Data Exploration
+
+Pada bagian ini kita akan mengeksplorasi data untuk mencari informasi dasar pada data frame untuk mengetahui apakah setiap variabel dalam data frame sudah memiliki tipe data yang tepat, berapa banyak nilai yang hilang pada data (missing value) dan di kolom mana berisi nilai yang hilang, dan mendapatkan beberapa pola dari data.
+
+### Pemeriksaan Tipe Data
+
+Pemeriksaan terhadap tipe data pada dataframe diperlukan untuk mengidentifikasi apakah tipe data sudah sesuai sebagaimana mestinya atau masih terdapat tipe data yang tidak sesuai, sehingga diperlukan transformasi pada data.
+
+```{r}
+### tampilkan tipe data 
+str(retail) 
+```
+
+Terdapat nama kolom yang tidak sesuai dengan format yang seharusnya, yakni kolom Customer ID sehingga diperlukan transformasi seperti mengubah nama kolom menjadi Customer_ID dan mengubah tipe datanya dari numerik menjadi karakter. Kemudian diperlukan transformasi pada kolom InvoiceDate dengan mempartisinya menjadi 2 kolom, Date dan Time juga mengubah tipe data kolom Date dari date time ke date.
+
+### Pemeriksaan Missing Value
+
+Proses ini merupakan proses mengidentifikasi apakah terdapat missing value yang merupakan nilai yang hilang pada dataframe. Missing value umum ditemukan pada dataframe dan memiliki pengaruh yang signifikan terhadap hasil pemodelan. Jika missing value tidak ditangani dengan benar, maka hasil pemodelan menjadi tidak akurat.
+
+```{r}
+### tampilkan missing value
+retail %>% profile_missing()
+```
+
+Terdapat sebanyak 247.389 missing value pada dataframe dengan jumlah missing value terbanyak terdapat pada kolom Customer ID kemudian diikuti dengan kolom Description. Dengan informasi tersebut, missing value perlu dihilangkan dari dataframe karena jika tidak dihilangkan data tersebut data yang dimiliki akan menjadi bias dan hasil pemodelan menjadi tidak akurat.
+
+### Pemeriksaan Pada Variabel Numerik
+
+Langkah ini dilakukan untuk memeriksa variabel nurmerik yang ada di dalam dataframe apakah sesuai sebagaimana mestinya dan apakah data tersebar dengan baik.
+
+```{r}
+### histogram dari variabel numerik
+retail %>% plot_histogram()
+```
+
+Terdapat kejanggalan pada kolom Price dan Quantity, seperti yang terlihat pada plot di atas. Pada plot yang dihasilkan hanya menunjukkan satu baris vertikal yang mengindikasikan jika terdapat outlier dan data pada kolom tersebut tidak terdistribusi dengan baik. Dengan demikian, diperlukan transformasi untuk menghilangkan outlier pada dataframe agar hasil pemodelan menjadi akurat.
+
+### Pemeriksaan Pada Kolom Country
+
+Langkah ini dilakukan untuk menampilkan daftar negara yang ada dalam dataframe dan memperoleh informasi pada negara mana saja transaksi terjadi dan berapa banyak jumlah transaksi terjadi pada negara tersebut.
+
+```{r}
+### menampilkan daftar negara pada dataframe 
+unique(retail$Country) 
+```
+
+```{r message=FALSE}
+### bar chart negara
+retail %>% plot_bar()
+```
+
+Terdapat sebanyak 43 negara yang ada dalam dataframe, dimana sebagian besar transaksi terjadi di United Kingdom. Pada pemodelan ini dibatasi hanya menggunakan data yang berasal dari United Kingdom saja, sehingga akan dilakukan filterisasi pada data dalam dataframe untuk mengambil data yang berasal dari United Kingdom saja dan membuang data yang berasal dari negara selain United Kingdom.
+
+### Pemeriksaan Pada Kolom Invoice
+
+Langkah ini dilakukan untuk mendapatkan informasi di dalam kolom Invoice apakah sesuai sebagaimana mestinya atau terdapat data yang tidak sesuai sehingga data tersebut harus dihilangkan.
+
+```{r}
+### menghitung berapa panjang karakter pada setiap invoice
+table(nchar(retail$Invoice, type = "chars"))
+```
+
+Terdapat dua informasi mengenai panjang karakter pada setiap invoice dimana terdapat 1.047.871 data invoice dengan panjang sebanyak 6 karakter dan 19.500 data invoice dengan panjang sebanyak 7 karakter.
+
+```{r}
+### tampilkan invoice yang memiliki panjang 6 karakter
+retail %>% select(Invoice) %>%  filter(nchar(Invoice) == 6) %>% distinct() %>% head()
+```
+
+Pada invoice dengan panjang sebanyak 6 karakter hanya berisi angka yang menjadi kode transaksi yang terlah terjadi.
+
+```{r}
+### tampilkan faktur yang memiliki panjang 7 karakter
+retail %>% select(Invoice) %>%  filter(nchar(Invoice) == 7) %>% distinct() %>% head()
+```
+
+Sedangkan pada invoice dengan panjang sebanyak 7 karakter berisi huruf angka, diawali dengan huruf C diikuti dengan angka sepanjang 6 karakter yang menjadi kode transaksi yang terlah terjadi.
+
+```{r}
+### tampilkan invoice yang mengandung huruf "C" 
+retail[grep(pattern="C", x = retail$Invoice, ignore.case=TRUE),]
+```
+
+Huruf C pada invoce tersebut memiliki arti transaksi yang dibatalkan, ditandai dengan nilai pada kolom Quantity bernilai negatif. Peneliatian ini hanya akan berfokus pada produk yang terjual, sehingga data tersebut akan dihilangkan karena membiarkan data ini tetap ada dapat membuat model dan analisis menjadi tidak akurat.
+
+### Pemeriksaan Pada Kolom StockCode
+
+Langkah ini dilakukan untuk mendapatkan informasi di dalam kolom StockCode apakah sesuai sebagaimana mestinya atau terdapat data yang tidak sesuai sehingga data tersebut harus dihilangkan.
+
+```{r}
+### menghitung panjang karakter pada setiap kode produk
+table(nchar(retail$StockCode, type = "chars"))
+```
+
+Terdapat sebanyak 10 informasi mengenai panjang karakter pada setiap kode produk. Terdapat 1713 data kode produk dengan panjang sebanyak 1 karakter, 283 data kode produk dengan panjang sebanyak 2 karakter, 1446 data kode produk dengan panjang sebanyak 3 karakter, 2158 data kode produk dengan panjang sebanyak 4 karakter, 932.385 data kode produk dengan panjang sebanyak 5 karakter, 127.591 data kode produk dengan panjang sebanyak 6 karakter, 1392 data kode produk dengan panjang sebanyak 7 karakter, 127 data kode produk dengan panjang sebanyak 8 karakter, 74 data kode produk dengan panjang sebanyak 9 karakter, 202 data kode produk dengan panjang sebanyak 12 karakter.
+
+```{r}
+### kode produk dengan panjang 1 karakter
+retail %>% filter(nchar(StockCode) == 1)
+```
+
+Kode produk dengan Panjang 1 karakter berisi Manual, Discount, SAMPLES, dan Adjust bad debt, yang mana bukan merupakan produk yang dijual.
+
+```{r}
+### kode produk dengan panjang 2 karakter
+retail %>% filter(nchar(StockCode) == 2)
+```
+
+Kode produk dengan Panjang 2 karakter hanya berisi CARRIAGE, yang mana bukan merupakan produk yang dijual.
+
+```{r}
+### kode produk dengan panjang 3 karakter
+retail %>% filter(nchar(StockCode) == 3)
+```
+
+Kode produk dengan Panjang 3 karakter hanya berisi DOTCOM POSTAGE, yang mana bukan merupakan produk yang dijual.
+
+```{r}
+### kode produk dengan panjang 4 karakter
+retail %>% filter(nchar(StockCode) == 4)
+```
+
+Kode produk dengan Panjang 4 karakter hanya berisi POSTAGE, yang mana bukan merupakan produk yang dijual.
+
+```{r}
+### kode produk dengan panjang 5 karakter
+retail %>% filter(nchar(StockCode) == 5)
+```
+
+Kode produk dengan Panjang 5 karakter berisi 15CM CHRISTMAS GLASS BALL 20 LIGHTS, RECORD FRAME 7" SINGLE SIZE, STRAWBERRY CERAMIC TRINKET BOX, dan sebagainya, yang mana merupakan produk yang dijual.
+
+```{r}
+### kode produk dengan panjang 6 karakter
+retail %>% filter(nchar(StockCode) == 6)
+```
+
+Kode produk dengan Panjang 6 karakter berisi PINK CHERRY LIGHTS, WHITE CHERRY LIGHTS, DOOR MAT BLACK FLOCK, dan sebagainya, yang mana merupakan produk yang dijual.
+
+```{r}
+### kode produk dengan panjang 7 karakter
+retail %>% filter(nchar(StockCode) == 7)
+```
+
+Kode produk dengan Panjang 7 karakter berisi LIGHT PINK CHERRY LIGHTS, EDWARDIAN PARASOL BLACK, GREEN CHERRY LIGHTS, dan sebagainya, yang mana merupakan produk yang dijual.
+
+```{r}
+### kode produk dengan panjang 8 karakter
+retail %>% filter(nchar(StockCode) == 8)
+```
+
+Kode produk dengan Panjang 8 karakter berisi BOYS PARTY BAG, HAYNES CAMPER SHOULDER BAG, BOXED GLASS ASHTRAY, dan sebagainya, yang mana merupakan produk yang dijual.
+
+```{r}
+### kode produk dengan panjang 9 karakter 
+retail %>% filter(nchar(StockCode) == 9)
+```
+
+Kode produk dengan Panjang 9 karakter berisi NAVY CUDDLES DOG HOODIE dan GIRLS PARTY BAG yang merupakan produk yang dijual. Sedangkan update dan AMAZON FEE bukan merupakan produk yang dijual.
+
+```{r}
+### kode produk dengan panjang 12 karakter
+retail %>% filter(nchar(StockCode) == 12)
+```
+
+Kode produk dengan Panjang 12 karakter hanya berisi Bank Charges dan Dotcomgiftshop Gift Voucher, yang mana bukan merupakan produk yang dijual. Seperti yang telah diketahui, kode produk berisi nomor unik yang ditetapkan secara unik untuk setiap produk yang berbeda. Kode produk yang memiliki panjang 1, 2, 3, 4 dan 12 karakter bukan merupakan produk yang terjual, sehingga data tersebut akan dihilangkan.
+
+### Ringkasan Statistik
+
+Langkah ini dilakukan dengan menapilkan ringkasan dataframe secara statistik. Hal ini dilakukan untuk mendapatkan informasi umum mengenai dataframe secara statistik.
+
+```{r}
+### ringkasan statistik data
+summary(retail) 
+```
+
+Pada ringkasan statistik, terdapat informasi yang disampaikan secara statistik untuk setiap kolom atau variabel yang ada didalam dataframe. Pada kolom Quantity terdapat outlier yang ditandai dengan nilai minimum sebesar negatif 80.955 dan nilai maksimum sebesar 80.955, sementara nilai quartil pertama sebesar 1, nilai median sebesar 3, nilai mean sebesar 9,94, dan nilai quartil ketiga sebesar 10.
+
+Begitu pula dengan kolom Price dengan nilai minimum sebesar negatif £ 53.594,36 dan nilai maksimum sebesar £ 38.970, sementara nilai quartil pertama sebesar £ 1,25, nilai median sebesar £ 2,10, nilai mean sebesar £ 4,65, dan nilai quartil ketiga sebesar £ 4,15. Oleh karenanya diperlukan transformasi untuk menghilangkan outlier pada dataframe agar hasil pemodelan menjadi akurat.
+
+Pada kolom Customer ID juga disampaikan informasi seperti nilai minimum, nilai quartil pertama, nilai median, nilai mean, nilai quartil ketiga, dan nilai maksimum yang menandakan bahwa tipe data pada kolom tersebut merupakan numerik sehingga diperlukan transformasi pada kolom tersebut untuk mengubah tipe datanya dari numerik menjadi karakter.
+
+# Data Cleaning
+
+Data cleaning merupakan proses memperbaiki atau menghilangkan data yang tidak akurat, rusak, tidak sesuai format, duplikat, atau tidak lengkap. Proses ini dilakukan untuk mengubah data mentah menjadi format yang lebih mudah digunakan dengan mengubah data mentah yang awalnya berantakan dan kompleks menjadi data berkualitas tinggi. Tahap ini dilakukan dengan melakukan transformasi pada data yang tidak sesuai format, melakukan penyesuaian pada nilai outlier yang ada di dalam data, dan menghilangkan data yang tidak diperlukan.
+
+## Transformasi Pada Data
+
+Langkah ini dilakukan untuk melakukan transformasi pada beberapa kolom, seperti InvoiceDate, Customer ID, dan Country. Transformasi pada kolom InvoiceDate dilakukan dengan mempartisinya menjadi 2 kolom, yakni Date dan Time serta mengubah tipe data kolom Date dari date time ke date.
+
+Kemudian untuk kolom Customer ID dilakukan perubahan nama kolom menjadi Customer_ID dan mengubah tipe datanya dari numerik menjadi karakter. Pada kolom Country dilakukan filterisasi untuk mengambil data yang berasal dari United Kingdom saja dan membuang data yang berasal dari negara selain United Kingdom.
+
+Setelah itu, invoice yang dimulai dengan awalan huruf "C" akan dihilangkan karena invoice tersebut berisi transaksi yang dibatalkan dan memiliki nilai negatif. Kemudian akan dilakukan filter untuk mengambil data dengan kode produk yang memiliki panjang karakter sepanjang 5, 6, 7, 8, dan 9 digit.
+
+```{r}
+## transformasi data
+### pisahkan kolom InvoiceDate menjadi Date and Time 
+retail <- retail %>% separate(col = InvoiceDate,
+                              into = c("Date", "Time"),
+                              sep = " ")
+### ubah tipe data dari date time menjadi date
+retail$Date <- as.Date(retail$Date)
+### ubah nama kolom
+names(retail)[names(retail) == "Customer ID"] <- "Customer_ID" 
+### Ubah Customer_ID sebagai karakter
+retail$Customer_ID <- as.character(retail$Customer_ID)
+### ambil data hanya yang berasal dari United Kingdom saja
+retail <- retail %>% filter(Country == "United Kingdom")
+### hilangkan kolom Country
+retail <- select(retail, -Country)
+### hapus invoice yang mengandung huruf "C"
+retail <- retail %>% filter(!grepl(pattern = "C", x = Invoice)) 
+### filter kode produk
+retail <- retail %>% filter(nchar(StockCode) >= 5 & nchar(StockCode) < 12)
+```
+
+## Menghilangkan NA Values
+
+Seperti yang telah diketahui sebelumnya, terdapat missing value pada dataframe dengan jumlah missing value terbanyak berada pada kolom Customer_ID kemudian diikuti dengan kolom Description. Missing value tersebut akan dihilangkan karena tidak memberikan banyak informasi dan juga tidak dapat menggantinya dengan nilai lain seperti nilai rata-rata atau nilai lainnya.
+
+```{r}
+## menghilangkan missing values
+retail <- na.omit(retail)
+```
+
+## Pemeriksaan Duplikasi pada Data
+
+Proses ini merupakan proses mengidentifikasi apakah terdapat duplikasi pada data di dalam dataframe. Duplikasi data umum ditemukan pada dataframe dan dapat terjadi akibat error atau kesalahan dalam penginputan data. Proses pemeriksaan duplikasi data perlu dilakukan, karena jika duplikasi data tidak ditangani dengan benar, maka hasil pemodelan menjadi tidak akurat.
+
+```{r message=FALSE}
+## pemeriksaan duplikasi pada data
+get_dupes(retail)
+```
+
+Terdapat duplikasi data dalam data frame seperti **PINK REGENCY TEACUP AND SAUCER**, **GREEN REGENCY TEACUP AND SAUCER**, **HI TEC ALPINE HAND WARMER**, dan sebagainya. Data duplikat tersebut berada pada invoice dan waktu yang sama.
+
+Dalam hal ini, diasumsikan bahwa terdapat kesalahan dalam sistem yang tidak menangkap penambahan kuantitas tetapi menangkapnya sebagai item pembelian ganda di baris yang berbeda pada invoice yang sama, oleh karenanya duplikasi data tersebut akan tetap diabaikan dan tidak menghapusnya.
+
+## Penyesuaian pada Kolom Price
+
+Seperti yang telah diketahui sebelumnya, pada kolom Price memiliki nilai minimum sebesar negatif £ 53.594,36 dan nilai maksimum sebesar £ 38.970 yang mana nilai tersebut terpaut jauh dari nilai quartil pertama, nilai median, nilai mean, dan nilai quartil ketiga. Oleh karenanya diperlukan transformasi untuk menangani nilai outlier pada dataframe agar hasil pemodelan menjadi akurat.
+
+```{r}
+## penyesuaian variabel Price
+### ringkasan statistik pada kolom Price 
+retail %>% select(Price) %>% summary
+```
+
+Terlihat pada ringkasan statistik di atas bahwa terjadi perubahan pada kolom Price, yang sebelumnya pada kolom tersebut memiliki nilai negatif sebagai nilai minimum sekarang berubah menjadi £ 0 sebagai nilai minimumnya. Pada pemodelan ini akan berfokus pada produk yang dijual, oleh karenanya akan dilakukan filter data untuk hanya menyimpan produk dengan harga produk minimum lebih besar dari £ 0. Namun sebelum itu, perlu dilakukan pemeriksaan untuk mengetahui produk apa saja yang memiliki harga lebih dari £ 0.
+
+```{r}
+### periksa harga dengan nilai lebih dari 0 dan kurang atau sama dengan  1
+retail %>% 
+  filter(Price > 0 & Price <= 1) %>% 
+  select(Description, Price) %>% 
+  distinct() %>% 
+  arrange(Price)
+```
+
+
+Setelah dilakukan filterisasi pada data, terdapat beberapa produk yang memiliki harga lebih dari £ 0 dan produk tersebut merupakan produk terjual. Dengan demikian akan dilakukan filterisasi untuk memilih data produk yang memiliki harga lebih dari £ 0 sebagai nilai minimum di kolom Price.
+
+```{r}
+### filter harga lebih dari 0 sebagai nilai minimum
+retail <- retail %>%  filter(Price > 0)
+```
+
+## Penanganan Outlier
+
+Outlier merupakan observasi data yang menyimpang secara signifikan dari observasi data lainnya dalam kumpulan data. Outlier dapat menyebabkan analisis menjadi bias sehingga diperlukan penganan untuk mengatasinya sebelum dilakukan proses analisis data. Pada variabel Price terdapat outlier yang mana nilai minimum dan nilai maksimum terpaut jauh dari nilai quartil pertama, nilai median, nilai mean, dan nilai quartil ketiga.
+
+Pada variabel price akan dilakukan transformasi dengan melakukan filter data untuk menangani outlier pada dataframe agar hasil pemodelan menjadi akurat. Pada penelitian ini akan berfokus pada produk yang dijual, oleh karenanya akan dilakukan filter data untuk hanya menyimpan produk dengan harga produk minimum lebih besar dari £ 0.
+
+```{r}
+## penanganan outlier
+### ringkasan statistik pada variabel Quantity dan Price 
+retail %>% select(Quantity, Price) %>% summary
+```
+
+Nilai minimum pada kolom Quantity dan Price sudah menjadi jauh lebih baik. Nilai minimum pada kolom Quantity adalah 1 yang menandakan bahwa jumlah minimal produk terjual dalam suatu transaksi berjumlah satu produk.
+
+Meskipun demikian, terlihat masih terdapat outlier di kedua kolom, tepatnya pada nilai maksimum pada kedua kolom tersebut sehingga diperlukan transformasi untuk penanganan outlier. Transformasi hanya akan dilakukan pada kolom Quantity karena harga produk pada kolom Price merupakan variabel tetap yang sudah ditentukan sehingga tidak dapat diubah.
+
+Sebelum dilakukan transformasi pada kolom Quantity, diperlukan pemeriksaan terlebih dahulu dengan melihat bagaimana data tersebar dengan menggunakan desil. Dengan melihat sebaran data dengan menggunakan desil, dapat diketahui pada desil mana terjadi perubahan yang cukup signifikan.
+
+```{r}
+### mencari desil (persentil ke-10, ke-20, ke-30, ..., ke-100) pada kolom Quantity
+quantile(retail$Quantity, probs = seq(.1, 1, by = .1))
+```
+
+Perubahan yang signifikan terjadi pada desil ke-90 menuju desil ke-100, dimana nilai observasi pada desil ke-90 sebesar 24 sedangkan nilai observasi pada desil ke-100 sebesar 80.995. Karena outlier hanya berada pada nilai maksimum, transformasi dilakukan dengan mengubah nilai outlier menggunakan metode capping dengan cara membuat fungsi batas atas dengan rumus Q1 + (1,5 x IQR). Untuk observasi yang berada di luar batas atas, nilai pada observasi tersebut akan diganti dengan nilai persentil ke-90, yang merupakan nilai pada desil dimana perubahan yang signifikan telah terjadi.
+
+```{r}
+### menerapkan metode capping pada kolom Quantity
+cap_outlier <- function(x){
+  qnt <- quantile(x, probs = .75)
+  caps <- quantile(x, probs= .90)
+  H <- 1.5 * IQR(x, na.rm = T)
+  x[x > (qnt + H)] <- caps
+  return(x)
+}
+retail$Quantity <- cap_outlier(retail$Quantity)
+```
+
+Setelah dilakukan transformasi untuk menghilangkan nilai outlier pada kolom Quantity, Langkah selanjutnya adalah membuat boxplot yang memberikan gambaran secara visual mengenai sebaran data secara keseluruhan.
+
+```{r}
+### plot area 1 baris dan 2 kolom
+par(mfrow = c(1, 2))
+### boxplot kolom Quantity
+boxplot(retail$Quantity, main = "Quantity")
+### boxplot kolom Price
+boxplot(retail$Price, main = "Price")
+```
+
+Terlihat sudah tidak ada lagi nilai outlier pada kolom Quantity yang menandakan transformasi untuk penanganan nilai outlier tersebut berhasil dilakukan. Meskipun pada kolom Price masih terdapat nilai outlier, nilai outlier pada kolom tersebut dapat diabaikan karena harga produk tidak memungkinkan untuk diubah karena merupakan variabel tetap yang sudah ditentukan.
+
+## Pemeriksaan pada Produk Terjual
+
+Pemeriksaan pada produk terjual dilakukan untuk memastikan apakah semua data merupakan produk terjual atau masih terdapat data yang bukan merupakan produk terjual, dimana data tersebut dapat mengganggu analisis sehingga analisis menjadi bias dan tidak akurat. Pemeriksaan dilakukan dengan menampilkan setiap produk terjual lalu mengurutkannya mulai dari harga tertinggi sampai dengan harga terendah.
+
+```{r}
+## pemeriksaan produk terjual
+### Memeriksa produk apa yang memiliki harga tertinggi 
+retail %>% 
+  select(Price, Quantity, Description) %>% 
+  arrange(desc(Price)) 
+```
+
+Hasil di atas menunjukkan produk apa saja yang terjual dengan harga tertinggi. Meskipun demikian, hasil menunjukkan bahwa terdapat beberapa **Adjustment** yang memiliki harga yang cukup tinggi.
+
+**Adjustment** tersebut diasumsikan bukan merupakan produk yang dijual sehingga data tersebut akan dihilangkan dengan melakukan transformasi. Transformasi dilakukan dengan mencari data yang mengandung kata "Adjustment" pada kolom Description, kemudian menghapusnya dari dataframe.
+
+```{r}
+### hapus data yang mengandung "Adjustment" pada kolom Description
+retail <- retail[-grep(pattern="Adjustment", x = retail$Description, ignore.case=TRUE),]
+```
+
+Setelah dilakukan transformasi pada kolom Description, kemudian dilakukan pemeriksaan ulang pada produk terjual untuk memastikan apakah semua data merupakan produk terjual atau masih terdapat data yang bukan merupakan produk terjual.
+
+```{r}
+### Memeriksa ulang produk apa yang memiliki harga tertinggi
+retail %>% 
+  select(Price, Quantity, Description) %>% 
+  arrange(desc(Price))
+```
+
+Setelah dilakukan pemeriksaan ulang pada produk terjual, hasil menunjukkan bahwa semua data merupakan produk terjual dan tidak terdapat data yang bukan merupakan produk terjual.
+
+## Hasil Akhir
+
+Tahap ini merupakan tahapan akhir yang berisi hasil dari proses data cleaning, dimana pada tahap ini akan ditampilkan dataframe setelah dilakukan pembersihan dan transformasi.
+
+```{r}
+### datframe clean
+retail
+```
+
+Gambar di atas merupakan tampilan dataframe setelah melewati proses data cleaning, dimana awalnya terdapat data yang tidak sesuai format, terdapat missing value dan outlier, serta terdapat data yang tidak diperlukan. Data mentah yang awalnya berisi 1.067.371 baris data dengan 8 variabel, kini mengalami reduksi sehingga hanya tersisa 724,452 baris data dengan 8 variabel setelah dilakukan proses data cleaning.
+
+```{r}
+### ringkasan akhir statistik data
+summary(retail)
+```
+
+Ringkasan statistik di atas menunjukkan bahwa terdapat 8 variabel dalam dataframe, yakni Inovoice, StockCode, Description, Quantity, Date, Time, Price, dan Customer_ID.
+
+Terdapat variabel atau kolom yang dihilangkan, yakni kolom Country. Kolom tersebut tidak dibutuhkan karena telah dilakukan transformasi untuk hanya menyimpan data transaksi yang berasal dari United Kingdom dan menghilangkan transaksi yang terjadi pada negara lain.
+
+Semua data merupakan data transaksi yang hanya terjadi di United Kingdom saja sehingga kolom Country dapat dihilangkan. Kemudian terdapat kolom baru pada dataframe, yakni kolom Time yang muncul setelah mempartisi kolom InovoiceDate menjadi 2 kolom, yakni Date dan Time.
+
+Pada kolom Date berisi tanggal terjadinya transaksi, sedangkan pada kolom Time berisi waktu terjadinya transaksi. Pada ringkasan statistik tersebut juga menunjukkan bahwa data sudah bersih dan semua kolom memiliki tipe data yang sudah sesuai.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
