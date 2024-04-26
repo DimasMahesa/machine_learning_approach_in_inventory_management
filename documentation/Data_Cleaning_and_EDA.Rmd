@@ -1,108 +1,103 @@
 ---
 title: "Data Cleaning & Exploratory Data Analysis"
-author: "Dimas Mahesa Kayun"
+author: "Dimas Mahesa Kayun,"  
 date: "December 2023"
 output: 
   github_document:
     toc: true
-    df_print: "paged"
+    df_print: "default"
 ---
 
-#Introduction
-
-##Overview
-XYZ Company, an online non-store retailer based in the United Kingdom, specializes in selling unique gift items, with the majority of its customers being wholesalers. The main problem faced by XYZ Company is the absence of a proper inventory management system to handle large and varied data, resulting in inaccurate conclusions about the actions that should be taken.
-
-Data collection was carried out by downloading the online_retail2 dataset from the UC Irvine Machine Learning Repository website in csv format. The dataset contains historical transaction data that occurred between 1 December 2009 and 9 December 2011, at a UK-based non-store online retailer, totaling 1,067,371 rows of data and consisting of 8 variables.
-
-##Aim
-This section is done as data preparation before modeling by carrying out the process of data cleaning and exploratory data analysis.
-
-##Data Description
-The [online_retail2.csv](https://archive.ics.uci.edu/ml/datasets/Online+Retail+II) dataset contains all transactions that occurred between 01/12/2009 and 09/12/2011 at a non-store-based online retail company in the United Kingdom. The company specializes in selling unique gift items, with a majority of its customers being wholesale agents.
-
-##Informasi Atribut
--   **InvoiceNo** : Invoice number (Nominal), a 6-digit integral number uniquely assigned to each transaction. If this code starts with the letter ‘c’, it indicates a cancellation.
-
--   **StockCode** : Product code (Nominal), a 5-digit integral number uniquely assigned to each distinct product.
-
--   **Description** : Product name (Nominal).
-
--   **Quantity** : The quantities of each product per transaction (Numeric).
-
--   **InvoiceDate** : Invoice date and time (Numeric), the day and time when a transaction was generated.
-
--   **Price** : Unit price (Numeric), Product price per unit in pound sterling (£).
-
--   **CustomerID** : Customer number (Nominal), a 5-digit integral number uniquely assigned to each customer.
-
--   **Country** : Country name (Nominal), the name of the country where a customer resides.
-
-##Tech Stack
-**Language used**: R
-**Library used**: tidyverse, lubridate, DataExplorer, janitor, ggplot2, inventorize, forecast
-
-==================================================================================================================================================
+# Introduction
 
 
-#Data Preparation & Exploration
-Data preparation involves preparing the data to be used in modeling. This process begins with inputting the dataset and libraries used in modeling. On the other hand, data exploration is a step carried out to understand the data before processing it further by exploring information to see the characteristics and patterns within the data.
+## Overview 
+XYZ Company, an online non-store retailer based in the United Kingdom, specializes in selling unique gift items, with the majority of its customers being wholesalers.  The main problem faced by XYZ Company is the absence of a proper inventory management system to handle large and varied data, resulting in inaccurate conclusions about the actions that should be taken.
 
-In this process, data will be explored with the aim of finding basic information in the data to determine if each variable already has the correct data type, how many missing values there are, if there are any outliers, and what patterns exist in the data.
+Data collection was carried out by downloading the online_retail2 dataset from the UC Irvine Machine Learning Repository website in csv format.  The dataset contains historical transaction data that occurred between 1 December 2009 and 9 December 2011, at a UK-based non-store online retailer, totaling 1,067,371 rows of data and consisting of 8 variables.  
 
-##Data Preparation
+
+## Aim 
+This section is done as data preparation before modeling by carrying out the process of data cleaning and exploratory data analysis.  
+
+
+## Data Description 
+The [online_retail2.csv](https://archive.ics.uci.edu/ml/datasets/Online+Retail+II) dataset contains all transactions that occurred between 01/12/2009 and 09/12/2011 at a non-store-based online retail company in the United Kingdom.  The company specializes in selling unique gift items, with a majority of its customers being wholesale agents.  
+
+
+## Attribute Information 
+-   **InvoiceNo** : Invoice number (Nominal), a 6-digit integral number uniquely assigned to each transaction. If this code starts with the letter ‘c’, it indicates a cancellation.  
+-   **StockCode** : Product code (Nominal), a 5-digit integral number uniquely assigned to each distinct product.  
+-   **Description** : Product name (Nominal).  
+-   **Quantity** : The quantities of each product per transaction (Numeric).  
+-   **InvoiceDate** : Invoice date and time (Numeric), the day and time when a transaction was generated.  
+-   **Price** : Unit price (Numeric), Product price per unit in pound sterling (£).  
+-   **CustomerID** : Customer number (Nominal), a 5-digit integral number uniquely assigned to each customer.  
+-   **Country** : Country name (Nominal), the name of the country where a customer resides.  
+
+
+## Tech Stack 
+**Language used**: R  
+**Library used**: tidyverse, lubridate, DataExplorer, and janitor  
+
+
+
+# Data Preparation & Exploration 
+Data preparation involves preparing the data to be used in modeling. This process begins with inputting the dataset and libraries used in modeling.  On the other hand, data exploration is a step carried out to understand the data before processing it further by exploring information to see the characteristics and patterns within the data.
+
+In this process, data will be explored with the aim of finding basic information in the data to determine if each variable already has the correct data type, how many missing values there are, if there are any outliers, and what patterns exist in the data.  
+
+
+## Data Preparation
 ```{r message=FALSE, warning=FALSE}
 ##import library
 library(tidyverse)
 library(lubridate)
 library(DataExplorer)
 library(janitor)
-library(ggplot2)
-library(kableExtra)
-library(cluster)
-library(factoextra)
-library(ggQC)
-library(tsibble)
-library(tseries)
-library(forecast)
 
 ##import and shows dataframe briefly
 retail <- read_csv("../../machine_learning_approach_in_inventory_management/dataset/online_retail2.csv")
 head(retail, 5)
 ```
+  
 
-##Data Exploration
-In this section, we will explore the data to find basic information in the data frame. We will determine if each variable in the data frame has the correct data type, identify the number of missing values in the data, and identify the columns that contain these missing values. Additionally, we will uncover some patterns within the data.
+## Data Exploration 
+In this section, we will explore the data to find basic information in the data frame.  We will determine if each variable in the data frame has the correct data type, identify the number of missing values in the data, and identify the columns that contain these missing values. Additionally, we will uncover some patterns within the data.  
 
-###Data Type Examination
-It is essential to examine the data types in a data frame to verify their correctness and identify any inconsistencies. Consequently, data transformations may be required.
+
+### Data Type Examination 
+It is essential to examine the data types in a data frame to verify their correctness and identify any inconsistencies.  Consequently, data transformations may be required.
 
 ```{r}
 ###data type 
 str(retail) 
 ```
 
-An incorrect column name was found, specifically the Customer ID column, which requires transformation such as renaming the column to Customer_ID and changing its data type from numeric to character. Then, a transformation is needed on the InvoiceDate column by splitting it into 2 columns, Date and Time, and changing the data type of the Date column from date time to date.
+An incorrect column name was found, specifically the Customer ID column, which requires transformation such as renaming the column to Customer_ID and changing its data type from numeric to character.  Then, a transformation is needed on the InvoiceDate column by splitting it into 2 columns, Date and Time, and changing the data type of the Date column from date time to date.  
 
-###Missing Value Examination
-This process involves identifying whether there are missing values in the dataframe. Missing values are commonly found in dataframes and can significantly impact modeling results. If missing values are not handled properly, the modeling results will be inaccurate.
+
+### Missing Value Examination 
+This process involves identifying whether there are missing values in the dataframe.  Missing values are commonly found in dataframes and can significantly impact modeling results. If missing values are not handled properly, the modeling results will be inaccurate.
 
 ```{r}
 ###missing value
 retail %>% profile_missing()
 ```
 
-The dataframe contains a significant number of missing values, specifically 247,389 observation. The Customer ID column has the highest count of missing values, followed by the Description column. To ensure accurate modeling results, it is necessary to eliminate these missing values from the data frame.
+The dataframe contains a significant number of missing values, specifically 247,389 observation. The Customer ID column has the highest count of missing values, followed by the Description column.  To ensure accurate modeling results, it is necessary to eliminate these missing values from the data frame.  
 
-###Examination on Numeric Variables
+
+### Examination on Numeric Variables
 ```{r}
 ###numeric variables distribution
 retail %>% plot_histogram()
 ```
 
-The Price and Quantity columns display anomalies, as observed in the plot above. The generated plot only shows a single vertical line indicating the presence of outliers, and the data in these columns is not well-distributed. Therefore, a transformation is needed to remove the outliers in the data frame in order to achieve accurate modeling.
+The Price and Quantity columns display anomalies, as observed in the plot above. The generated plot only shows a single vertical line indicating the presence of outliers, and the data in these columns is not well-distributed.  Therefore, a transformation is needed to remove the outliers in the data frame in order to achieve accurate modeling.  
 
-###Country Column Examination
+
+### Country Column Examination 
 This step is performed to showcase the countries listed in the data frame and gather insights into the countries where transactions took place and the corresponding transaction counts.
 
 ```{r}
@@ -115,9 +110,10 @@ unique(retail$Country)
 retail %>% plot_bar()
 ```
 
-The data frame contains 43 countries, with the United Kingdom being the primary location for most transactions. For this modeling, only data from the United Kingdom will be used, so the data in the dataframe will be filtered to retrieve only the data from the United Kingdom and discard data from countries other than the United Kingdom.
+The data frame contains 43 countries, with the United Kingdom being the primary location for most transactions. For this modeling, only data from the United Kingdom will be used, so the data in the dataframe will be filtered to retrieve only the data from the United Kingdom and eliminate data from countries other than the United Kingdom.  
 
-###Invoice Column Examination
+
+### Invoice Column Examination
 ```{r}
 ###character length in every invoice
 table(nchar(retail$Invoice, type = "chars"))
@@ -134,17 +130,18 @@ retail %>% select(Invoice) %>%  filter(nchar(Invoice) == 6) %>% distinct() %>% h
 ###invoices with 7 character length
 retail %>% select(Invoice) %>%  filter(nchar(Invoice) == 7) %>% distinct() %>% head()
 ```
-In the invoices with 6 character length, there are only numeric codes that indicate the transactions that have taken place.
-Meanwhile, the invoices with 7 character length, contains a combination of letters and numbers. It commences with the letter C, followed by a 6-character numerical code that serves as the transaction identifier.
+
+In the invoices with 6 character length, there are only numeric codes that indicate the transactions that have taken place. Meanwhile, the invoices with 7 character length, contains a combination of letters and numbers. It commences with the letter C, followed by a 6-character numerical code that serves as the transaction identifier.
 
 ```{r}
 ###Invoices contains "C" letter
 retail[grep(pattern="C", x = retail$Invoice, ignore.case=TRUE),]
 ```
 
-The letter C on the invoice represents a canceled transaction, indicated by a negative value in the Quantity column. This modeling will solely focus on the sold products, thus eliminating this data as its presence could lead to inaccurate modeling and analysis.
+The letter C on the invoice represents a canceled transaction, indicated by a negative value in the Quantity column. This modeling will solely focus on the sold products, thus eliminating this data as its presence could lead to inaccurate modeling and analysis.  
 
-###StockCode Column Examination
+
+### StockCode Column Examination
 ```{r}
 ###character length in every product code
 table(nchar(retail$StockCode, type = "chars"))
@@ -220,11 +217,12 @@ The product code with a length of 9 character contains NAVY CUDDLES DOG HOODIE d
 retail %>% filter(nchar(StockCode) == 12)
 ```
 
-The product code with a length of 12 character contains Bank Charges dan Dotcomgiftshop Gift Voucher, which are not products for sale. 
+The product code with a length of 12 character contains Bank Charges dan Dotcomgiftshop Gift Voucher, which are not products for sale.
 
-As it is known, the product code contains a unique number assigned uniquely for each different product. Product codes with lengths of 1, 2, 3, 4, and 12 characters are not products for sale, so these data will be eliminated.
+As it is known, the product code contains a unique number assigned uniquely for each different product. Product codes with lengths of 1, 2, 3, 4, and 12 characters are not products for sale, so these data will be eliminated.  
 
-###Statistical Summary
+
+### Statistical Summary
 ```{r}
 ###statistical summary of the data
 summary(retail) 
@@ -234,18 +232,18 @@ The statistical summary provides statistical information for each column or vari
 
 Similarly, the Price column has a minimum value of -£53,594.36 and a maximum value of £38,970. The first quartile value is £1.25, the median is £2.10, the mean is £4.65, and the third quartile value is £4.15. Therefore, transformation is necessary to eliminate outliers in the dataframe for accurate modeling.
 
-The Customer ID column also provides information such as the minimum value, first quartile value, median, mean, third quartile value, and maximum value, indicating that the data type in that column is numeric. Hence, transformation is needed to change the data type from numeric to character.
-
-==================================================================================================================================================
+The Customer ID column also provides information such as the minimum value, first quartile value, median, mean, third quartile value, and maximum value, indicating that the data type in that column is numeric. Hence, transformation is needed to change the data type from numeric to character.  
 
 
-#Data Cleaning
-Data cleaning is the process of improving or removing inaccurate, damaged, improperly formatted, duplicate, or incomplete data. This process is carried out to transform raw data into a more user-friendly format by converting the initially messy and complex raw data into high-quality data. This stage is accomplished by performing transformations on data that are not in the correct format, making adjustments to outlier values within the data, and eliminating unnecessary data.
 
-##Data Transformation
+# Data Cleaning 
+Data cleaning is the process of improving or removing inaccurate, damaged, improperly formatted, duplicate, or incomplete data.  This process is carried out to transform raw data into a more user-friendly format by converting the initially messy and complex raw data into high-quality data.  This stage is accomplished by performing transformations on data that are not in the correct format, making adjustments to outlier values within the data, and eliminating unnecessary data.  
+
+
+## Data Transformation 
 This step is taken to transform several columns, such as InvoiceDate, Customer ID, and Country. The transformation on the InvoiceDate column is done by splitting it into 2 columns, namely Date and Time, and changing the data type of the Date column from date time to date.
 
-Next, for the Customer ID column, the column name is changed to Customer_ID and its data type is changed from numeric to character. For the Country column, filtering is done to retrieve data originating from the United Kingdom only and discard data from countries other than the United Kingdom.
+Next, for the Customer ID column, the column name is changed to Customer_ID and its data type is changed from numeric to character. For the Country column, filtering is done to retrieve data originating from the United Kingdom only and eliminate data from countries other than the United Kingdom.
 
 After that, invoices starting with the letter "C" will be removed because these invoices contain canceled transactions and have negative values. Then, a filter will be applied to retrieve data with product codes that have a character length of 5, 6, 7, 8, and 9 digits.
 
@@ -277,17 +275,19 @@ retail <- retail %>% filter(!grepl(pattern = "C", x = Invoice))
 ###filter product code
 retail <- retail %>% filter(nchar(StockCode) >= 5 & nchar(StockCode) < 12)
 ```
+  
 
-##Eliminating NA Values
+## Eliminating NA Values 
 As mentioned before, there are missing values in the dataframe, with the Customer_ID column having the highest number of missing values, followed by the Description column. These missing values will be removed from the dataset as they do not provide much information and cannot be replaced with other values such as the mean or any other value.
 
 ```{r}
 ##eliminating missing values
 retail <- na.omit(retail)
 ```
+  
 
-##Examining Duplication on the Data
-This process focuses on identifying whether there are duplicates in the data within the data frame. Data duplication is commonly found in data frames and can occur due to errors or mistakes in data input. The process of checking for duplicate data is necessary, as if duplicate data is not handled properly, the modeling results will become inaccurate.
+## Examining Duplication on the Data 
+This process focuses on identifying whether there are duplicates in the data within the data frame. Data duplication is commonly found in data frames and can occur due to errors or mistakes in data input.  The process of checking for duplicate data is necessary, as if duplicate data is not handled properly, the modeling results will become inaccurate.
 
 ```{r message=FALSE}
 ##examining duplication in the data
@@ -296,9 +296,10 @@ get_dupes(retail)
 
 There are duplications on the data frame such as **PINK REGENCY TEACUP AND SAUCER**, **GREEN REGENCY TEACUP AND SAUCER**, **HI TEC ALPINE HAND WARMER**, and many more. The duplicate data is on the same invoice and time.
 
-In this case, it is assumed that there is an error in the system that does not capture quantity increments but captures them as duplicate purchase items in different rows on the same invoice, therefore such data duplication will still be ignored and not deleted.
+In this case, it is assumed that there is an error in the system that does not capture quantity increments but captures them as duplicate purchase items in different rows on the same invoice, therefore such data duplication will still be ignored and not deleted.  
 
-##Price Adjustment
+
+## Price Adjustment 
 It is known that the Price column has a minimum value of negative £53,594.36 and a maximum value of £38,970, which significantly deviates from the first quartile, median, mean, and third quartile values. Hence, a transformation is needed to address outlier values in the data frame for accurate modeling.
 
 ```{r}
@@ -307,7 +308,7 @@ It is known that the Price column has a minimum value of negative £53,594.36 an
 retail %>% select(Price) %>% summary
 ```
 
-The provided summary statistics clearly demonstrate a change in the Price column. Previously, the minimum value in this column was negative, but it has now been adjusted to £0 as the new minimum value. In this modeling will focus on the products being sold, thus requiring a data filter to retain only those products with a minimum price that greater than £0. However, prior to applying the filter, it is important to conduct an examination to identify which products have prices greater than £0.
+The provided summary statistics clearly demonstrate a change in the Price column. Previously, the minimum value in this column was negative, but it has now been adjusted to £0 as the new minimum value.  In this modeling will focus on the products being sold, thus requiring a data filter to retain only those products with a minimum price that greater than £0. However, prior to applying the filter, it is important to conduct an examination to identify which products have prices greater than £0.
 
 ```{r}
 ###examining price with value greater than 0 and less or equal to 1
@@ -324,11 +325,12 @@ After filtering the data, it was discovered that certain products have prices gr
 ###filter 0 as the minimum value
 retail <- retail %>%  filter(Price > 0)
 ```
+  
 
-##Handling Outlier
-Outliers are data observations that deviate significantly from other data observations in a dataset. Outliers can introduce bias in the analysis, therefore it is necessary to handle them before conducting the data analysis process. In the Price column, there are outliers where the minimum and maximum values are far apart from the first quartile, median, mean, and third quartile values.
+## Handling Outlier 
+Outliers are data observations that deviate significantly from other data observations in a dataset. Outliers can introduce bias in the analysis, therefore it is necessary to handle them before conducting the data analysis process.  In the Price column, there are outliers where the minimum and maximum values are far apart from the first quartile, median, mean, and third quartile values.
 
-To handle these outliers in the Price variable, a data transformation will be performed by filtering the data in the data frame. This will ensure that the modeling results are accurate. In this particular study, the focus is on the products for sale. Therefore, a data filter will be applied to only include products with a minimum product price greater than £0.
+To handle these outliers in the Price variable, a data transformation will be performed by filtering the data in the data frame. This will ensure that the modeling results are accurate.  In this modeling, the focus is on the products for sale. Therefore, a data filter will be applied to only include products with a minimum product price greater than £0.
 
 ```{r}
 ##handling outlier
@@ -338,7 +340,7 @@ retail %>% select(Quantity, Price) %>% summary
 
 The minimum values in the Quantity and Price columns have significantly improved. The minimum value in the Quantity column is 1, indicating that the minimum number of products sold in a transaction is one.
 
-However, there are still outliers in both columns, specifically in the maximum values of these columns, which require transformation to handle the outliers. Transformation will only be performed on the Quantity column because the product price in the Price column is a fixed variable that has already been determined and cannot be changed.
+However, there are still outliers in both columns, specifically in the maximum values of these columns, which require transformation to handle the outliers.  Transformation will only be performed on the Quantity column because the product price in the Price column is a fixed variable that has already been determined and cannot be changed.
 
 Before performing the transformation on the Quantity column, it is necessary to examine the data distribution by using percentiles. By observing the data distribution using percentiles, we can identify at which percentile a significant change occurs.
 
@@ -347,7 +349,7 @@ Before performing the transformation on the Quantity column, it is necessary to 
 quantile(retail$Quantity, probs = seq(.1, 1, by = .1))
 ```
 
-A significant change occurred from the 90th percentile to the 100th percentile, where the observation value at the 90th percentile was 24 while the observation value at the 100th percentile was 80.995. Since the outlier was only at the maximum value, a transformation was carried out by changing the outlier value using the capping method, creating an upper limit function with the formula Q1 + (1.5 x IQR). For observations beyond the upper limit, the value in those observations will be replaced with the 90th percentile value, which is the value at the percentile where the significant change occurred.
+A significant change occurred from the 90th percentile to the 100th percentile, where the observation value at the 90th percentile was 24 while the observation value at the 100th percentile was 80.995.  Since the outlier was only at the maximum value, a transformation was carried out by changing the outlier value using the capping method, creating an upper limit function with the formula Q1 + (1.5 x IQR).  For observations beyond the upper limit, the value in those observations will be replaced with the 90th percentile value, which is the value at the percentile where the significant change occurred.
 
 ```{r}
 ###applying capping method in Quantity column
@@ -374,10 +376,11 @@ boxplot(retail$Quantity, main = "Quantity")
 boxplot(retail$Price, main = "Price")
 ```
 
-There are no outliers left in the Quantity column, indicating the successful implementation of outlier handling transformation. Although there are still outliers exist in the Price column, they can be ignored as product prices are fixed variables that cannot be modified.
+There are no outliers left in the Quantity column, indicating the successful implementation of outlier handling transformation. Although there are still outliers exist in the Price column, they can be ignored as product prices are fixed variables that cannot be modified.  
 
-##Examining Products Sold
-Examination of sold products is conducted to verify whether all data are sold items or if there are any data that are not sold products, which could interfere with the analysis and lead to biased and inaccurate results. This examination involves displaying each sold item and arranging them from highest to lowest price.
+
+## Examining Products Sold 
+Examination of sold products is conducted to verify whether all data are sold items or if there are any data that are not sold products, which could interfere with the analysis and lead to biased and inaccurate results.  This examination involves displaying each sold item and arranging them from highest to lowest price.
 
 ```{r}
 ##examining product sold
@@ -405,9 +408,10 @@ retail %>%
   arrange(desc(Price))
 ```
 
-Upon conducting a reexamination of the sold products, the findings indicate that all the data are of sold products, with no data found that are not sold products.
+Upon conducting a reexamination of the sold products, the findings indicate that all the data are of sold products, with no data found that are not sold products.  
 
-##Final Result
+
+## Final Result 
 This process represents the final phase containing the outcomes of the data cleaning process, where the dataframe will be displayed after the cleaning and transformation process has been carried out.
 
 ```{r}
@@ -415,7 +419,7 @@ This process represents the final phase containing the outcomes of the data clea
 retail
 ```
 
-The dataframe displayed above represents the result of the data cleaning process. Initially, there were data entries that did not meet the required format, as well as missing values, outliers, and unnecessary data. The raw data, which initially contained 1,067,371 rows of data with 8 variables, has now been reduced to a final dataset of 724,452 rows of data with 8 variables after the completion of the data cleaning process.
+The dataframe displayed above represents the result of the data cleaning process. Initially, there were data entries that did not meet the required format, as well as missing values, outliers, and unnecessary data.  The raw data, which initially contained 1,067,371 rows of data with 8 variables, has now been reduced to a final dataset of 724,452 rows of data with 8 variables after the completion of the data cleaning process.
 
 ```{r}
 ###final statistical summary
@@ -429,4 +433,3 @@ There is a variable or column that has been removed, namely the Country column. 
 All the data is transaction data that only occurred in the United Kingdom, so the Country column can be eliminated. Additionally, there is a new column in the dataframe, namely the Time column, which appears after partitioning the InvoiceDate column into 2 columns, Date and Time.
 
 The Date column contains the date of the transaction, while the Time column contains the time of the transaction. The statistical summary also indicates that the data is clean and all columns have the appropriate data types.
-
