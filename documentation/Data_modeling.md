@@ -138,13 +138,13 @@ thus requiring strict management and control.
 As its name suggests, ABC analysis categorizes products into three
 categories, namely:
 
-- **Kategori A**: contains products with high sales volume and low
+- **Category A**: contains products with high sales volume and low
   inventory, making it the highest priority and requiring strict
   control.
-- **Kategori B**: contains products with normal sales volume and normal
+- **Category B**: contains products with normal sales volume and normal
   inventory levels, sold regularly but not as much as products in
   Category A.
-- **Kategori C**: contains products with low sales volume and high
+- **Category C**: contains products with low sales volume and high
   inventory levels, typically making up the largest portion of the
   overall inventory volume.
 
