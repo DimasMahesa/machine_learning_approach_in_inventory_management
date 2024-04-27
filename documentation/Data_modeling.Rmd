@@ -1,5 +1,5 @@
 ---
-title: "Data Modelling"
+title: "Machine Learning Approach in Inventory Management"
 author: "Dimas Mahesa Kayun,"  
 date: "December 2023"
 output: 
@@ -12,13 +12,13 @@ output:
 
 
 ## Overview 
-XYZ Company, an online non-store retailer based in the United Kingdom, specializes in selling unique gift items, with the majority of its customers being wholesalers.  The main problem faced by XYZ Company is the absence of a proper inventory management system to handle large and varied data, resulting in inaccurate conclusions about the actions that should be taken.
+XYZ company is a UK-based non-store online retailer that sells unique gift items where most of the company's customers are wholesalers. The problem that occurs in XYZ company is that there is no adequate inventory management system in processing large-scale and diverse data, leading to inappropriate conclusions about the actions that should be taken.
 
 Data collection was carried out by downloading the online_retail2 dataset from the UC Irvine Machine Learning Repository website in csv format.  The dataset contains historical transaction data that occurred between 1 December 2009 and 9 December 2011, at a UK-based non-store online retailer, totaling 1,067,371 rows of data and consisting of 8 variables.  
 
 
 ## Aim 
-This section is done as data preparation before modeling by carrying out the process of data cleaning and exploratory data analysis.  
+This modeling aims to utilize machine learning approach to address inventory issues by employing ABC analysis to classify inventory items using K-means Clustering algorithm, demand forecasting using the ARIMA model, and inventory optimization using the EOQ model.  These three models will be integrated into an interconnected system. Thus, the utilization of a large scale and diverse data can provide accurate outcomes within a brief timeframe. By adopting a machine learning approach, companies can optimize inventory and prevent undesirable shortages or excess inventory.
 
 
 ## Data Description 
@@ -38,17 +38,47 @@ The [online_retail2.csv](https://archive.ics.uci.edu/ml/datasets/Online+Retail+I
 
 ## Tech Stack 
 **Language used**: R  
-**Library used**: tidyverse, lubridate, DataExplorer, and janitor  
+**Library used**: tidyverse, lubridate, ggplot2, cluster, factoextra, ggQC, tsibble, tseries and forecast  
 
 
-# Feature Selection & Engineering Untuk Analisis ABC
+# Data Preparation
+```{r message=FALSE, warning=FALSE}
+##import library
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(cluster)
+library(factoextra)
+library(ggQC)
+library(tsibble)
+library(tseries)
+library(forecast)
 
-Analisis ABC dalam pemodelan ini akan menggunakan data transaksi satu tahun ke belakang, sehingga data tersebut akan diambil dari dataframe retail dan dibuatkan dataframe baru untuk memisahkannya. Setelah itu, data kemudian diolah sesuai dengan tahapan pengolan data untuk analisis ABC pada umumnya.
+##import and shows data frame briefly
+retail <- read_csv("../../machine_learning_approach_in_inventory_management/dataset/retail_clean.csv")
+head(retail, 5)
+```
 
-Analisis ABC pada pemodelan ini menggukanan revenue sebagai kriteria dalam pengelompokkan item persediaan, sehingga langkah ini dimulai dengan menghitung revenue pada setiap item, kemudian mengurutkannya secara menurun berdasarkan revenue mulai dari yang terbesar sampai dengan yang terkecil, dan setelahnya menghitung nilai kumulatif dan persentase revenue dari masing-masing item. Hasil akhir dari langkah ini adalah berupa data frame df_abc yang berisi 5 kolom dengan 3782 baris data.
+
+
+# ABC Analysis
+The ABC analysis is an approach used in various fields, particularly in inventory management, to classify products based on the Pareto principle (80/20 Rule), which states that 80% of sales will come from 20% of products. In other words, this principle is used to identify products that have a significant impact on the overall revenue of the company, thus requiring strict management and control.
+
+As its name suggests, ABC analysis categorizes products into three categories, namely:
+
+-   **Kategori A**: contains products with high sales volume and low inventory, making it the highest priority and requiring strict control.
+-   **Kategori B**: contains products with normal sales volume and normal inventory levels, sold regularly but not as much as products in Category A.
+-   **Kategori C**: contains products with low sales volume and high inventory levels, typically making up the largest portion of the overall inventory volume.
+
+The three categories are then utilized to control product inventory and determine ordering policies for each product. This is done in order to tightly manage the inventory of Category A products, ensuring they never run out of stock, while effectively managing Category B products to minimize or eliminate stockouts. Meanwhile, Category C products, which are sold in low volumes and do not require constant management, receive less attention.
+
+## Feature Selection & Engineering for ABC Analysis
+In this modeling, the ABC analysis will be conducted using transaction data from the previous year. Hence, the data will be extracted from the retail data frame and a new data frame will be created to separate it. Following this, the data will be processed according to the standard data processing steps for ABC analysis.
+
+The ABC analysis in this modeling uses revenue as a criterion in grouping inventory items, so this step begins by calculating revenue for each item, then sorting them in descending order based on revenue from largest to smallest, and then calculating the cumulative value and percentage of revenue for each item.
 
 ```{r message=FALSE}
-## mengambil data transaksi selama satu tahun ke belakang
+##collect transaction data from the previous year
 df_abc <- retail %>% 
   filter(Date >= max(Date)-365 & Date <= max(Date)) %>% 
   select(Description, Quantity, Price) %>% 
@@ -56,47 +86,32 @@ df_abc <- retail %>%
   summarise(Sales = sum(Quantity),
             Revenue = sum(Quantity*Price)) %>% 
   arrange(desc(Revenue))
-## menambahkan variabel cumulative
+
+##add cumulative variable
 df_abc$Cumulative <- cumsum(df_abc$Revenue)
-## menambahkan variabel percentage
+
+##add percentage variable
 df_abc <- df_abc %>% mutate(Percentage = Cumulative/sum(Revenue)*100)
 
-df_abc # menampilkan data
+df_abc #result
 ```
 
-# Analisis ABC
-
-Analisis ABC merupakan pendekatan yang digunakan di beberapa bidang, terutama dalam manajemen persediaan untuk mengklasifikasikan produk berdasarkan prinsip Pareto (80/20 Rule), yang mengatakan bahwa 80% penjualan (sales) akan berasal dari 20% produk. Dengan kata lain, prinsip ini digunakan untuk mengidentifikasi produk yang memiliki dampak signifikan terhadap pendapatan perusahaan secara keseluruhan sehingga memerlukan manajemen dan kontrol yang ketat.
-
-Sesuai dengan namanya, ABC analysis membagi produk kedalam tiga kategori, yaitu:
-
--   **Kategori A**: Berisi produk dengan volume penjualan yang tinggi dan jumlah persediaan yang sedikit sehingga menjadi prioritas tertinggi dan memerlukan kontrol yang ketat.
--   **Kategori B**: Berisi produk dengan volume penjualan yang normal dan jumlah persediaan yang normal pula, dijual secara teratur tetapi tidak sebanyak produk yang termasuk kedalam kategori A.
--   **Kategori C**: Berisi produk dengan volume penjualan yang rendah dan jumlah persediaan yang banyak, umumnya merupakan bagian terbesar dari volume persediaan secara keseluruhan.
-
-Ketiga kategori tersebut kemudian digunakan untuk mengontrol persediaan produk dan menentukan kebijakan pemesanan untuk setiap produk. Hal ini bertujuan agar produk kategori A dapat dikelola dengan sangat ketat sehingga produk tersebut tidak pernah kehabisan stok dan agar produk kategori B dapat dikelola dengan baik sehingga produk tersebut jarang atau tidak pernah kehabisan stok, sementara kita dapat memberikan sedikit perhatian pada produk kategori C yang terjual dalam volume rendah dan tidak memerlukan manajemen yang konstan.
-
 ## K-Means Clustering
+K-Means is one of the methods aimed at dividing data into one or more groups or clusters.The main goal is to group data with similar characteristics into the same cluster, while data with different characteristics are placed into separate clusters.This method is one of the most well-known and widely used clustering methods. Its advantages lie in its simplicity, ease of implementation, and ability to cluster large-scale data.
 
-K-Means merupakan salah satu metode yang bertujuan untuk membagi data ke dalam satu atau lebih kelompok atau cluster. Hal ini dilakukan dengan tujuan untuk mengelompokkan data yang memiliki karakteristik yang sama ke dalam satu cluster yang sama, sementara data yang memiliki karakteristik yang berbeda dikelompokkan ke dalam kelompok yang berbeda pula. Metode ini merupakan salah satu metode clustering yang paling terkenal dan banyak digunakan. Keunggulan metode ini terletak pada kesederhanaannya, kemudahan dalam implementasi, dan kemampuannya dalam mengelompokkan data yang berskala besar.
-
-K-means Clustering adalah algoritma clusterisasi yang berfungsi untuk mengelompokkan data berdasarkan titik pusat (centroid) yang terdekat dengan data. Dimana pada metode ini dilakukan pengelompokan data atau clustering dengan sistem partisi dan pemodelannya tanpa supervisi. Dalam metode ini pengelompokan data dilakukan menjadi beberapa kelompok, dan tiap kelompok memiliki kesamaan karakteristik dan memiliki karakteristik dengan kelompok lainnya.
-
-Algoritma K-Means Clustering digunakan pada analisis ABC untuk membagi item persediaan kedalam tiga kelompok berdasarkan revenue. Pemodelan ini dimulai dengan menginisiasi fungsi kmeans(), kemudian memasukkan variabel yang dibutuhkan ke dalam fungsi tersebut.
-
-Pada fungsi kmeans() membutuhkan variabel dari data yang akan dikelompokkan ke dalam beberapa cluster dan jumlah K yang mana adalah jumlah cluster yang akan dibuat. Langkah pertama ialah mengambil variabel Revenue dan Cumulative pada data frame yang telah disiapkan pada tahap Feature Selection & Engineering. Kemudian menetapkan nilai K = 3, karena data akan dibagi ke dalam tiga kelompok. Setelah memasukkan variabel yang dibutuhkan dan menjalankan fungsi tersebut, akan didapat hasil pemodelan dapat dilihat pada tampilan output di bawah.
+K-means Clustering is an algorithm used for clustering data based on the nearest centroid points. Through partitioning and unsupervised modeling, data is grouped into several clusters where each cluster has similar characteristics and shares characteristics with other clusters. 
 
 ```{r}
-## K-Means clustering 
+##K-Means clustering 
 set.seed(999)
-abc <- kmeans(df_abc[,c(3:4)], centers = 3) #menggunakan kolom 3-4
-abc #menampilkan hasil k-means
+abc <- kmeans(df_abc[,c(3:4)], centers = 3) #using 3-4th column
+abc #k-means result
 sil_abc <- silhouette(abc$cluster, dist(df_abc[,c(3:4)])) 
-fviz_silhouette(sil_abc) #validasi model menggunakan grafik silhouete
+fviz_silhouette(sil_abc) #model validation using silhouete plot
 df_abc$Cluster <- as.factor(abc$cluster)
-levels(df_abc$Cluster) <- c("A", "B", "C") #mengganti label cluster
+levels(df_abc$Cluster) <- c("A", "B", "C") #changing cluster label
 
-## menampilkan tabel cluster
+##cluster table
 final_abc <- df_abc %>% 
   group_by(Cluster) %>% 
   summarise(
@@ -107,17 +122,14 @@ final_abc <- df_abc %>%
   mutate(Revenue_Percentage = (Total_Revenue/sum(Total_Revenue))*100,
          Demand_Percentage = (Total_Demand/sum(Total_Demand))*100)
 
-final_abc %>% 
-  kbl() %>% 
-  kable_classic(full_width = F, html_font = "Times New Roman")
+final_abc 
 ```
 
-Output di atas merupakan hasil pengelompokkan data atau clustering dengan menggunakan algoritma K-Means Clustering yang membagi data ke dalam tiga cluster berdasarkan revenue dan nilai kumulatif untuk setiap item. Ketiga cluster yang dihasilkan oleh algoritma tersebut yaitu cluster 1 yang berisi 322 data, cluster 2 yang berisi 744 data, dan cluster 3 yang berisi 2716 data. Model clustering yang dihasilkan memiliki akurasi sebesar 88,5%, dimana akurasi tersebut dinilai baik dan berhasil.
+The displayed output represents the outcome of data grouping or clustering achieved by using the K-Means Clustering algorithm. This algorithm partitions the data into three clusters based on revenue and cumulative values for each item. The algorithm produces three clusters: cluster 1 with 322 data points, cluster 2 with 744 data points, and cluster 3 with 2716 data points. The generated clustering model has an accuracy of 88.5%, which is considered good and successful.
 
-Dalam grafik silhouette tersebut terlihat semua data memiliki nilai positif dan model membagi data kedalam cluster sesuai dengan karakteristik dari masing-masing data, tidak terlihat ada data yang bernilai negatif yang berarti model tidak menempatkan data tersebut sesuai dengan cluster yang seharusnya. Oleh karenanya, bisa dikatakan model K-Means Clustering yang dibuat berhasil mengelompokkan data sebagaimana mestinya.
+The silhouette graph reveals that all the data points exhibit positive values, and the model effectively partitions the data into clusters based on their individual characteristics. There are no instances of negative values, indicating that the model correctly assigns the data points to appropriate clusters. Therefore, it can be confidently stated that the developed K-Means Clustering model successfully achieves the intended data grouping.
 
 ## Pareto Chart ABC Cluster
-
 ```{r message=FALSE, warning=FALSE}
 ## pareto chart
 final_abc %>% 
@@ -126,7 +138,7 @@ final_abc %>%
   labs(
     x = NULL,
     y = "Revenue(x1000)",
-    title = "Pareto Chart Analisis ABC"
+    title = "Pareto Chart ABC Analysis"
   )+
   scale_y_continuous(labels = scales::comma)+
   stat_pareto(point.color = "red",
@@ -137,14 +149,13 @@ final_abc %>%
 
 ```
 
-Gambar diatas memuat informasi mengenai total revenue yang dihasilkan oleh setiap cluster, dengan cluster A menghasilkan total revenue tertinggi, diikuti dengan cluster B yang menghasilkan total revenue yang sedang, dan yang terakhir cluster C yang menghasilkan total revenue terendah di antara semua cluster. Total revenue untuk setiap cluster direpresentasikan oleh balok yang tersusun dengan urutan menurun dan jumlah persentase kumulatif yang dihasilkan oleh setiap cluster direpresentasikan oleh garis.
+The provided image presents information regarding the total revenue generated by different clusters. Cluster A stands out as the top performer, generating the highest total revenue, followed by cluster B with a moderate total revenue, and finally cluster C with the lowest total revenue among all clusters. The total revenue for each cluster is visually represented by stacked bars arranged in descending order, while the cumulative percentage generated by each cluster is depicted by lines.
 
-Berdasarkan informasi tersebut, dapat disimpulkan bahwa pemodelan K-Means Clustering untuk analisis ABC berjalan dengan baik. Hasil yang diperoleh pada pemodelan tersebut juga sudah sesuai dengan prinsip yang ada pada analisis ABC yang mana sejumlah kecil item persediaan menghasilkan revenue yang tinggi sedangkan sejumlah besar item persediaan menghasilkan revenue yang rendah.
+Based on the provided information, it can be concluded that the K-Means Clustering modeling for ABC analysis is performing well. The obtained results from this modeling also align with the principles of ABC analysis, where a small number of inventory items generate high revenue, while a large number of inventory items generate low revenue.
 
-## Visualisasi ABC Cluster
-
+## ABC Cluster Visualization
 ```{r}
-# total sku berdasarkan cluster
+##total sku based on cluster
 final_abc %>% 
   ggplot(aes(x = Cluster, y = Total_SKU, fill = Cluster))+
   geom_bar(stat = "identity")+
@@ -155,10 +166,10 @@ final_abc %>%
     x = NULL,
     y = NULL,
     title = "ABC",
-    subtitle = "Jumlah dan Distribusi Produk pada Setiap Kelompok"
+    subtitle = "Amount and distribution of products in each group"
   )
 
-# total revenue berdasarkan cluster
+##total revenue based on cluster
 final_abc %>% 
   ggplot(aes(x = Cluster, y = Total_Revenue, fill = Cluster))+
   geom_bar(stat ="identity")+
@@ -169,10 +180,10 @@ final_abc %>%
     x = NULL,
     y = NULL,
     title = "Total Revenue",
-    subtitle = "Jumlah Revenue(x1000) di Setiap Kelompok selama 12 bulan terakhir"
+    subtitle = "Revenue amount(x1000) in each group over the past 12 months"
   )
 
-# total sales(demand) berdasarkan cluster
+##total sales(demand) based on cluster
 final_abc %>% 
   ggplot(aes(x = Cluster, y = Total_Demand, fill = Cluster))+
   geom_bar(stat = "identity")+
@@ -183,47 +194,52 @@ final_abc %>%
     x = NULL,
     y = NULL,
     title = "Total Sales",
-    subtitle = "Jumlah Sales di Setiap Kelompok selama 12 bulan terakhir"
+    subtitle = "Sales amount in each group over the past 12 months"
   )
 
 ```
 
-# Feature Selection & Engineering untuk Model ARIMA
 
-Langkah ini dilakukan untuk mempersiapkan data untuk peramalan permintaan dengan model ARIMA, dimulai dengan mengambil data yang termasuk kedalam cluster A, kemudian menyimpannya ke dalam dataframe baru. Setelahnya dilakukan filter data untuk memilih item yang memiliki bulan penjualan sebanyak 25. Filter data tersebut dimaksudkan untuk hanya memilih item yang dimana terdapat penjualan di setiap bulannya dalam periode 01 Desember 2009 sampai dengan 09 Desember 2011. Hal ini dilakukan guna mendapatkan model peramalan permintaan dengan akurasi yang baik.
+# Demand Forecasting using ARIMA Model
+ARIMA stands for Autoregressive Integrated Moving Average, which is the most commonly used approach for time series forecasting. The ARIMA model is based on the assumption that the data must be stationary, meaning that it does not undergo any changes or fluctuations so that the average observation remains constant over time. If the data is not stationary, differencing is required by calculating the changes or differences in values between observations to transform the non-stationary data into stationary data. 
 
-## Filter A Category Product
+SARIMA stands for Seasonal Autoregressive Integrated Moving Average. The SARIMA model is an extension of the ARIMA model that can handle data with seasonal patterns. By considering the seasonal component in forecasting, this model can provide more accurate results in anticipating demand fluctuations. Seasonality can be defined as a pattern that occurs repeatedly within a fixed time interval. 
 
+## Feature Selection & Engineering for ARIMA Model
+This step is taken to prepare the data for demand forecasting using the ARIMA model. It starts by extracting data that falls into cluster A and then saving it into a new data frame.  
+After that, the data is filtered to select items that have 25 sales months. This data filtering is intended to choose only items that have sales in every month within the period from December 1, 2009, to December 9, 2011. This is done to obtain a demand forecasting model with good accuracy.
+
+### Filter A Category Products
 ```{r message=FALSE}
-## filter cluster yang akan digunakan untuk peramalan
+##filter cluster used for forecasting
 a_category <- df_abc %>% filter(Cluster == "A") %>% select(Description)
 
-## inner join untuk mengambil data yang termasuk dalam cluster A
+##inner join to collect data belonging to cluster A
 df_a <- retail %>% inner_join(a_category, by = c("Description" = "Description"))
 
-## membuat dataframe baru
+##create new data frame
 a_product <- df_a %>% 
   group_by(Description, Date = yearmonth(Date)) %>% 
   summarise(Sales = sum(Quantity)) %>% 
   arrange(Date)
 
-## filter data dengan bulan penjualan sebanyak 25
+##filter data with sales month is equal to 25
 a_product <- a_product %>% 
   group_by(Description) %>% 
   summarise(sum = n()) %>% 
   filter(sum == 25) %>% 
   select(Description)
 
-a_product # menampilkan data
+a_product #result
 ```
 
-Setelah dilakukan filter data pada item dalam cluster A, hasil menunjukkan terdapat 64 item yang memiliki bulan penjualan sebanyak 25. Oleh karenanya data tersebut disimpan dan dilakukan proses manipulasi untuk mengelompokkan penjualan dalam format mingguan agar pola penjualan pada data tersebut dapat dilihat dengan jelas.
+After filtering the data on items in cluster A, the results show that there are 64 items with 25 sales months. Therefore, the data is saved and manipulated to group sales into weekly format so that the sales pattern in the data can be clearly seen.
 
 ```{r message=FALSE}
-## inner join untuk mengambil data yang memiliki bulan penjualan sebanyak 25
+##inner join to collect data with sales month is equal to 25
 df_a <- df_a %>% inner_join(a_product,by= c("Description" = "Description"))
 
-## transformasi data
+##transforming data
 df_a <- df_a %>% 
   group_by(Description, Date = ceiling_date(Date, "week")) %>% 
   summarise(Sales = sum(Quantity),
@@ -231,46 +247,49 @@ df_a <- df_a %>%
   arrange(Date)
 ```
 
-Dalam pemodelan ini, peramalan permintaan akan menggunakan sampel data, oleh karenanya dari ke-64 item produk hanya akan dipilih beberapa item yang memiliki kesamaan jenis dengan jumlah variasi produk sebanyak lebih dari 5 item. Item yang terpilih adalah item bag yang merupakan produk Bag dengan jumlah variasi produk sebanyak 8 variasi produk.
 
-Setelah mengetahui item mana saja yang akan digunakan untuk peramalan permintaan, kemudian dilakukan pencarian item yang mengandung kata "BAG" dalam dataframe dan memilih item yang mengandung kata tersebut untuk kemudian disimpan ke dalam data frame baru. Adapun pola penjualan setiap item bag dapat dilihat pada gambar di bawah.
+### Filter Bag Items
+In this modeling, demand forecasting will be based on a sample of data. Therefore, out of the 64 product items, only a few items with similar types will be selected, with a total of more than 5 variations. The selected items are bag items, which have 8 variations.
+
+After identifying which items will be used for demand forecasting, a search is conducted in the data frame to find items that contain the word "BAG". These items are then selected and stored in a new data frame. The sales patterns for each bag item can be seen in the image below.
 
 ```{r}
-## mencari item yang mengandung kata BAG dalam dataframe
+##items containing the word BAG in a data frame
 bag <- df_a[grep(pattern="BAG", x = df_a$Description, ignore.case=TRUE),]
 
-## plot data
+##data plot
 bag %>% 
   ggplot(aes(x = Date, y = Sales, col = Description))+
   geom_line()+
   theme_bw() + 
-  labs(title = "Sales Plots Produk Bag", x = "Date", y = "Sales")+
+  labs(title = "Sales plot bag items", x = "Date", y = "Sales")+
   theme(plot.margin = margin(1, 1, 0, 1, "cm"),legend.position = "bottom")+
-  guides(color = guide_legend(title = "Nama Produk", ncol = 2))
+  guides(color = guide_legend(title = "Product name", ncol = 2))
 ```
 
-Setelah memilih, mengekstrak, dan menggabungkan data, kemudian dilakukan proses manipulasi data dengan mengubahnya menjadi format time series. Kemudian mempartisi data menjadi dua bagian, yakni training set dan testing set.
+### Training and Testing Data
+After selecting, extracting, and merging the data, the next step involves manipulating the data by converting it into a time series format. Subsequently, the data is partitioned into two parts, namely the training set and the testing set.
 
-Training set berisi data yang digunakan untuk pemodelan dengan komposisi sebanyak kurang-lebih 80% dari total data yang dimiliki. Sedangkan testing set berisi data yang digunakan untuk melakukan test pada pemodelan yang telah dilakukan dengan komposisi sebanyak kurang-lebih 20% dari total data yang dimiliki.
+The training set contains data used for modeling, comprising approximately 80% of the total data. Meanwhile, the testing set comprises data used to test the completed modeling, with a composition of approximately 20% of the total data.
 
 ```{r}
-## pivot data
+##pivot data
 bag_sales <- bag %>% pivot_wider(id_cols = Date, 
                                  names_from = Description, 
                                  values_from = Sales,
                                  values_fill = 0)
 
-## ubah menjadi format data frame
+##make it data frame
 bag_sales <- as.data.frame(bag_sales)
 
-## time series data frame
+##time series data frame
 ts_bag <- ts(data = bag_sales[,-1], start = c(2009, 49), frequency = 52)
 
-## partisi menjadi train dan test
+##partitions into training set and testing set
 train <- window(ts_bag, end = c(2011,24))
 test <- window(ts_bag, start = c(2011,25))
 
-## test set untuk setiap produk
+##test set for every product
 p1_test <- window(test[,1])
 p2_test <- window(test[,2])
 p3_test <- window(test[,3])
@@ -281,10 +300,11 @@ p7_test <- window(test[,7])
 p8_test <- window(test[,8])
 ```
 
-Langkah terakhir yang dilakukan adalah melakukan time series plot dan melakukan Augmented Dickey-Fuller Test (ADF Test) untuk mengetahui derajat stasioneritas pada setiap item bag. Adapun time series plot dapat dilihat pada gambar di bawah.
+### ADF Test
+The last step in the process is to carry out a time series plot and conduct the Augmented Dickey-Fuller Test (ADF Test) to assess the level of stationarity for each item within the set. The time series plot is available for viewing in the figure below.
 
 ```{r}
-## time series plot
+##time series plot
 par(mfrow = c(4, 2), mar=c(2,2,2,1))   
 plot(ts_bag[,1], main = "Jumbo Bag Baroque Black White")
 plot(ts_bag[,2], main = "Jumbo Bag Strawberry")
@@ -296,32 +316,27 @@ plot(ts_bag[,7], main = "Lunch Bag Woodland")
 plot(ts_bag[,8], main = "Red Floral Feltcraft Shoulder Bag")
 ```
 
-Berdasarkan gambar di atas, pergerakan data pada setiap produk mengalami fluktuasi, dimana hal tersebut mengindikasikan bahwa data tidak stationer. Pada gambar tersebut juga terlihat adanya pola trend pada beberapa produk seperti pada produk Jumbo Bah Strawberry, Jumbo Storage Bag Suki, dan Lunch Bag Cars Blue. Adapun hasil ADF Test pada setiap item adalah sebagai berikut:
+Based on the image above, the data movement for each product fluctuates, indicating that the data is non-stationary. The image also shows a trend pattern in some products such as Jumbo Bah Strawberry, Jumbo Storage Bag Suki, and Lunch Bag Cars Blue. The ADF Test results for each item are as follows:
 
 ```{r}
-## adf test
+##adf test
 lapply(ts_bag,function(x){ adf.test(x) })
 ```
 
-Bersadarkan hasil ADF Test di atas, dapat dilihat hasil hipotesis adalah sebagai berikut:
+Based on the results of the ADF Test above, the hypothesis results can be seen as follows:
 
-**Hipotesis** H0 : Data tidak stasioner H1 : Data stasioner
+**Hypothesis** H0: Data is not stationary H1: Data is stationary  
+**Significance Level** α = 5% or 0.05  
+**Statistical Test** The p-value for each item is greater than the alpha value, except for the item Jumbo Bag Baroque Black White with a p-value of 0.0466.  
+**Critical Region** p-value \< α, therefore H0 is rejected  
+**Decision** Since the p-value is greater than α, we fail to reject H0  
+**Conclusion** The data is not stationary 
 
-**Tingkat Signifikansi** α = 5% atau 0,05
+The ADF Test suggests that the data for each item is non-stationary, even though the p-value for the Jumbo Bag Baroque Black White item is 0.0466. While the p-value is below the alpha value for this item, indicating stationary data, a closer look at the time series plot shows irregular data movement and fluctuations. Therefore, it can be inferred that the data is non-stationary, even though the p-value from the ADF Test is less than the alpha value.
 
-**Statiska Uji** p-value pada masing-masing item bernilai lebih besar dari nilai alpha, kecuali pada item Jumbo Bag Baroque Black White dengan p-value sebesar 0,0466.
+Following the outcomes, it is necessary to make the data stationary initially through differencing. Differencing is carried out by by calculating the changes or differences in values in observations to transform non-stationary data into stationary data.
 
-**Daerah Kritis** p-value \< α maka H0 ditolak
-
-**Keputusan** Karena nilai p-value \> α maka gagal tolak H0
-
-**Kesimpulan** Data tidak stasioner
-
-Berdasarkan ADF Test tersebut dapat disimpulkan bahwa data pada masing-masing item dapat dikatakan tidak stasioner walaupun pada item Jumbo Bag Baroque Black White memiliki p-value sebesar 0,0466. Pada item tersebut nilai p-value lebih kecil dari nilai alpha yang mana seharusnya data stationer namun setelah melihat time series plot pada item tersebut, pergerakan data tidak konstan dan terjadi fluktuasi sehingga dapat disimpulkan data tidak stationer walaupun pada hasil ADF Test nilai p-value lebih kecil dari nilai alpha.
-
-Berdasarkan hasil tersebut, maka data harus di stasionerkan terlebih dahulu dengan cara melakukan differencing. Differencing dilakukan dengan menghitung perubahan atau selisih nilai pada observasi untuk mengubah data yang tidak stationer menjadi stationer.
-
-Setelah data melewati proses differencing, maka diperlukan kembali untuk melakukan time series plot dan melakukan ADF Test untuk memastikan derajat stasioneritas pada setiap item bag. Adapun time series plot pada setiap item setelah melewati satu kali differencing yang dapat dilihat pada gambar di bawah.
+Once the data has undergone the differencing process, it is necessary to carry out a time series plot and an ADF Test to ensure the degree of stationarity in each item set. The time series plot for each item, after undergoing a single differencing, can be observed in the image below..
 
 ```{r}
 ## 1x differencing
@@ -329,50 +344,43 @@ ts_bag_diff <- diff(ts_bag, differences = 1)
 
 ## time series plot setelah 1x differencing
 par(mfrow = c(4, 2), mar=c(2,2,2,1))  
-plot(ts_bag_diff[,1], main = "Jumbo Bag Baroque Black White Setelah 1x Differencing", cex.lab = 0.5)
-plot(ts_bag_diff[,2], main = "Jumbo Bag Strawberry Setelah 1x Differencing", cex.lab = 0.5)
-plot(ts_bag_diff[,3], main = "Jumbo Storage Bag Skulls Setelah 1x Differencing", cex.lab = 0.5)
-plot(ts_bag_diff[,4], main = "Jumbo Storage Bag Suki Setelah 1x Differencing", cex.lab = 0.5)
-plot(ts_bag_diff[,5], main = "Lunch Bag Black Skull Setelah 1x Differencing", cex.lab = 0.5)
-plot(ts_bag_diff[,6], main = "Lunch Bag Cars Blue Setelah 1x Differencing", cex.lab = 0.5)
-plot(ts_bag_diff[,7], main = "Lunch Bag Woodland Setelah 1x Differencing", cex.lab = 0.5)
-plot(ts_bag_diff[,8], main = "Red Floral Feltcraft Shoulder Bag Setelah 1x Differencing", cex.lab = 0.5)
+plot(ts_bag_diff[,1], main = "Jumbo Bag Baroque Black White after 1x Differencing", cex.lab = 0.5)
+plot(ts_bag_diff[,2], main = "Jumbo Bag Strawberry after 1x Differencing", cex.lab = 0.5)
+plot(ts_bag_diff[,3], main = "Jumbo Storage Bag Skulls after 1x Differencing", cex.lab = 0.5)
+plot(ts_bag_diff[,4], main = "Jumbo Storage Bag Suki after 1x Differencing", cex.lab = 0.5)
+plot(ts_bag_diff[,5], main = "Lunch Bag Black Skull after 1x Differencing", cex.lab = 0.5)
+plot(ts_bag_diff[,6], main = "Lunch Bag Cars Blue after 1x Differencing", cex.lab = 0.5)
+plot(ts_bag_diff[,7], main = "Lunch Bag Woodland after 1x Differencing", cex.lab = 0.5)
+plot(ts_bag_diff[,8], main = "Red Floral Feltcraft Shoulder Bag after 1x Differencing", cex.lab = 0.5)
 ```
 
-Berdasarkan gambar di atas, pergerakan data pada setiap produk sudah tidak mengalami fluktuasi sehingga rata-rata pengamatan selalu konstan sepanjang waktu, dimana hal tersebut mengindikasikan bahwa data sudah stationer. Adapun hasil ADF Test pada setiap item setelah melalui satu kali differencing adalah sebagai berikut:
+Based on the image above, the data movement for each product has shown no fluctuations, resulting in a constant average observation over time, indicating that the data is stationary. The ADF Test results for each item after undergoing one differencing are as follows:
 
 ```{r, warning=FALSE}
 ## adf test setelah 1x differencing
 lapply(ts_bag_diff,function(x){ adf.test(x) })
 ```
 
-Bersadarkan hasil ADF Test di atas, dapat dilihat hasil hipotesis adalah sebagai berikut:
+Based on the results of the ADF Test above, the hypothesis results can be seen as follows:
 
-**Hipotesis** H0 : Data tidak stasioner H1 : Data stasioner
+**Hypothesis** H0: Data is non-stationary H1: Data is stationary  
+**Significance Level** α = 5% or 0.05  
+**Statistical Test** The p-value for each item is greater than the alpha value, where the p-value for each item = 0.01  
+**Critical Region** p-value \< α, therefore H0 is rejected  
+**Decision** Since the p-value \< α, we reject H0  
+**Conclusion** The data is stationary  
 
-**Tingkat Signifikansi** α = 5% atau 0,05
+Based on the ADF Test, it can be concluded that the data for each item can be considered stationary after undergoing a single differencing. This is supported by the time series plot for each item, where the data movement is relatively constant and there are no fluctuations.
 
-**Statiska Uji** p-value pada masing-masing item bernilai lebih besar dari nilai alpha, dimana p-value untuk masing-masing item = 0,01
 
-**Daerah Kritis** p-value \< α maka H0 ditolak
+## ARIMA Modeling
+ARIMA modeling is conducted using the Auto ARIMA method to automate the process of identifying the best order of the ARIMA model. The modeling begins with creating two functions used to identify the model and determine the best order of the ARIMA model and SARIMA model using the Auto ARIMA method for each product batch. The training process involves creating two models, namely the ARIMA model and SARIMA model by running the auto.arima() function.
 
-**Keputusan** Karena nilai p-value \< α maka tolak H0
-
-**Kesimpulan** Data stasioner
-
-Berdasarkan ADF Test tersebut dapat disimpulkan bahwa data pada masing-masing item dapat dikatakan stasioner setelah melalui differencing sebanyak satu kali. Hal tersebut didukung oleh time series plot pada setiap item dimana pergerakan data cukup konstan dan tidak terjadi fluktuasi.
-
-# Pemodelan ARIMA
-
-Pemodelan ARIMA dilakukan dengan menggunakan metode Auto ARIMA untuk mengotomatisasi proses identifikasi orde terbaik dari model ARIMA. Pemodelan diawali dengan membuat dua fungsi yang digunakan untuk mengidentifikasi model dan menentukan orde terbaik dari model ARIMA dan model SARIMA dengan menggunakan metode Auto ARIMA untuk setiap produk bag. Proses training dilakukan dengan membuat dua model, yakni model ARIMA dan model SARIMA dengan menjalankan fungsi auto.arima() pada RStudio.
-
-Pada fungsi tersebut menggunakan training set sebagai data yang digunakan untuk pemodelan, kemudian memasukkan komponen yang dibutuhkan seperti d yang merupakan banyaknya differencing pada model, D yang merupakan banyaknya seasonal differencing pada model, ic yang merupakan kriteria dalam pemilihan model dimana dalam hal ini menggunakan AIC, seasonal dimana jika bernilai TRUE algoritma akan menyertakan model seasonal dan jika bernilai FALSE model tidak akan menyertakan model seasonal, stepwise yang diisi dengan nilai FALSE dimana algoritma akan mencari seluruh kemungkinan kombinasi model agar hasil yang didapatkan menjadi lebih maksimal, trace yang diisi dengan nilai TRUE agar algoritma dapat menampilkan kombinasi model, dan method yang diisi dengan ML yang berarti menggunakan machine learning dalam pemilihan model ARIMA.
-
-Setelah dilakukan training model, hasil yang di dapat adalah model ARIMA terbaik untuk setiap produk berdasarkan nilai AIC terendah dimana hasil tersebut dapat dilihat pada output di bawah
+Once the model training is completed, the obtained results reveal that the best ARIMA model for each product is determined by considering the lowest AIC value. These outcomes can be observed in the presented output below.
 
 ```{r}
-## model train
-### arima model
+##model train
+###arima model
 arima_fit <- sapply(train, FUN = auto.arima, simplify = FALSE, USE.NAMES = TRUE,
                     # auto.arima arguments
                     d = 1,
@@ -387,7 +395,7 @@ arima_fit <- sapply(train, FUN = auto.arima, simplify = FALSE, USE.NAMES = TRUE,
                     method = "ML"
 )
 
-### sarima model
+###sarima model
 sarima_fit <- sapply(train, FUN = auto.arima, simplify = FALSE, USE.NAMES = TRUE,
                      # auto.arima arguments
                      d = 1,
@@ -404,58 +412,28 @@ sarima_fit <- sapply(train, FUN = auto.arima, simplify = FALSE, USE.NAMES = TRUE
                      method = "ML"
 )
 
-## model test
-### forecast test arima
+##model test
+###forecast test arima
 fc_arima <- sapply(arima_fit, FUN = forecast, simplify = FALSE, USE.NAMES = TRUE,
                    h = 24 # forecast horizon
 )
 
 
-### forecast test sarima
+###forecast test sarima
 fc_sarima <- sapply(sarima_fit, FUN = forecast, simplify = FALSE, USE.NAMES = TRUE,
                     h = 24 # forecast horizon
 )
 
 ```
 
-# Model Exponential Smoothing 
-```{r}
-# single exponential smoothing
-ses_model <- sapply(train, FUN = ses, simplify = FALSE, USE.NAMES = TRUE,
-                   h = 24 # forecast horizon
-)
+## Evaluation
+After acquiring the best model, the model testing procedure is then performed. The testing process entails predicting the demand for the next 24 weeks using the testing set on the best ARIMA model that has been obtained.
 
-# double exponential smoothing
-holt_model <- sapply(train, FUN = holt, simplify = FALSE, USE.NAMES = TRUE,
-                   h = 24 # forecast horizon
-)
-
-```
-
-
-# Model Moving Average
-```{r warning=FALSE}
-# moving average
-ma_fit <- sapply(train, FUN = ma, simplify = FALSE, USE.NAMES = TRUE,
-                 order = 3, centre = TRUE)
-
-fc_ma <- sapply(ma_fit, FUN = forecast, simplify = FALSE, USE.NAMES = TRUE,
-                    h = 24 # forecast horizon
-)
-
-```
-
-
-
-## Evaluasi
-
-Setelah mendapatkan model terbaik, kemudian dilakukan proses testing model. Proses testing dilakukan dengan dengan melakukan peramalan permintaan untuk 23 minggu ke depan menggunakan testing set pada model ARIMA terbaik yang telah didapatkan.
-
-Setelah melakukan peramalan permintaan, kemudian akan dilakukan pengukuran pada hasil peramalan permintaan dengan menggunakan RMSE untuk melihat akurasi model yang dapat dilihat pada tabel di bawah.
+Following the demand forecasting, measurements will be taken on the forecasted demand results using RMSE to assess the accuracy of the model, which can be seen in the result below.
 
 ```{r}
-# evaluasi
-## fungsi untuk ekstrak hasil forecast
+#evaluation
+##fuction for extracting forecast result
 get_value <- function(x, type = c("mean", "lower", "upper"), 
                       level = c(80, 95)){
   if(type == "mean"){
@@ -480,40 +458,21 @@ get_value <- function(x, type = c("mean", "lower", "upper"),
   return(out)
 }
 
-## ekstrak forecast point
-### forecast point arima
+##extracting forecast point
+###forecast point arima
 mean_fc_arima <- sapply(fc_arima, FUN = get_value, simplify = TRUE, 
                         USE.NAMES = TRUE,
                         type = "mean")
-### forecast point sarima
+###forecast point sarima
 mean_fc_sarima <- sapply(fc_sarima, FUN = get_value, simplify = TRUE, 
                          USE.NAMES = TRUE,
                          type = "mean")
 
-### forecast point ses
-mean_fc_ses <- sapply(ses_model, FUN = get_value, simplify = TRUE, 
-                         USE.NAMES = TRUE,
-                         type = "mean")
-
-### forecast point holt
-mean_fc_holt <- sapply(holt_model, FUN = get_value, simplify = TRUE, 
-                         USE.NAMES = TRUE,
-                         type = "mean")
-
-### forecast point ma
-mean_fc_ma <- sapply(fc_ma, FUN = get_value, simplify = TRUE, 
-                         USE.NAMES = TRUE,
-                         type = "mean")
-
-## ubah hasil menjadi time series
+##transform it into time series format
 mean_fc_arima <- ts(mean_fc_arima, start = c(2011, 25), frequency = 52)
 mean_fc_sarima <- ts(mean_fc_sarima, start = c(2011, 25), frequency = 52)
-mean_fc_ses <- ts(mean_fc_ses, start = c(2011, 25), frequency = 52)
-mean_fc_holt <- ts(mean_fc_holt, start = c(2011, 25), frequency = 52)
-mean_fc_ma <- ts(mean_fc_ma, start = c(2011, 25), frequency = 52)
 
-
-### akurasi model
+###model accuracy
 p1_a1 <- mean_fc_arima[,1] %>% accuracy(test[,1])
 p2_a1 <- mean_fc_arima[,2] %>% accuracy(test[,2])
 p3_a1 <- mean_fc_arima[,3] %>% accuracy(test[,3])
@@ -532,27 +491,8 @@ p6_a2 <- mean_fc_sarima[,6] %>% accuracy(test[,6])
 p7_a2 <- mean_fc_sarima[,7] %>% accuracy(test[,7]) 
 p8_a2 <- mean_fc_sarima[,8] %>% accuracy(test[,8]) 
 
-p1_a3 <- mean_fc_ses[,1] %>% accuracy(test[,1]) 
-p2_a3 <- mean_fc_ses[,2] %>% accuracy(test[,2]) 
-p3_a3 <- mean_fc_ses[,3] %>% accuracy(test[,3]) 
-p4_a3 <- mean_fc_ses[,4] %>% accuracy(test[,4]) 
-p5_a3 <- mean_fc_ses[,5] %>% accuracy(test[,5]) 
-p6_a3 <- mean_fc_ses[,6] %>% accuracy(test[,6]) 
-p7_a3 <- mean_fc_sarima[,7] %>% accuracy(test[,7]) 
-p8_a3 <- mean_fc_sarima[,8] %>% accuracy(test[,8]) 
-
-p1_a4 <- mean_fc_sarima[,1] %>% accuracy(test[,1]) 
-p2_a4 <- mean_fc_sarima[,2] %>% accuracy(test[,2]) 
-p3_a4 <- mean_fc_sarima[,3] %>% accuracy(test[,3]) 
-p4_a4 <- mean_fc_sarima[,4] %>% accuracy(test[,4]) 
-p5_a4 <- mean_fc_sarima[,5] %>% accuracy(test[,5]) 
-p6_a4 <- mean_fc_sarima[,6] %>% accuracy(test[,6]) 
-p7_a4 <- mean_fc_sarima[,7] %>% accuracy(test[,7]) 
-p8_a4 <- mean_fc_sarima[,8] %>% accuracy(test[,8]) 
-
-
 ### RMSE
-rmse <- data.frame(Produk = c("JUMBO BAG BAROQUE BLACK WHITE",
+rmse <- data.frame(Product = c("JUMBO BAG BAROQUE BLACK WHITE",
                               "JUMBO BAG STRAWBERRY",
                               "JUMBO STORAGE BAG SKULLS",
                               "JUMBO STORAGE BAG SUKI",
@@ -569,19 +509,18 @@ rmse <- data.frame(Produk = c("JUMBO BAG BAROQUE BLACK WHITE",
                               round(p5_a2[,2], 2), round(p6_a2[,2], 2),
                               round(p7_a2[,2], 2), round(p8_a2[,2], 2)))
 
-rmse # menampilkan nilai RMSE
+rmse #RMSE value
 ```
 
 ```{r}
-summary(ts_bag) # ringkasan statistik
+summary(ts_bag) #statistical summary
 ```
 
-Berdasarkan pada output di atas, diketahui nilai RMSE pada model ARIMA dan model SARIMA untuk setiap produknya. Model ARIMA yang terpilih untuk digunakan dalam peramalan permintaan pada data aktual adalah model dengan error terkecil berdasarkan nilai RMSE. Untuk produk Jumbo Bag Baroque Black White, Jumbo Bag Strawberry, Jumbo Storage Bag Skulls, Jumbo Storage Bag Suki, Lunch Bag Black Skull, dan Lunch Bag Woodland, model ARIMA berjalan lebih baik dibandingkan dengan model SARIMA. Hal tersebut dibuktikan oleh nilai RMSE model ARIMA pada produk tersebut lebih kecil dari nilai RMSE model SARIMA, oleh karenanya model ARIMA dipilih dan akan digunakan untuk melakukan peramalan permintaan pada produk tersebut menggunakan data actual. Sedangkan untuk produk Lunch Bag Cars Blue dan Red Floral Feltcraft Shoulder Bag, diketahui jika nilai RMSE pada model SARIMA lebih kecil dari nilai RMSE pada model ARIMA. Hal ini menandakan jika model SARIMA berjalan lebih baik dibandingkan model ARIMA pada kedua produk tersebut.
+The RMSE values for the ARIMA model and SARIMA model for each product are determined based on the output above. The ARIMA model selected for demand forecasting on actual data is the model with the smallest error based on the RMSE value.
 
-## Plot
-
+## Trained model Plot
 ```{r}
-## plot hasil training
+##plot training result
 ### plot item 1
 autoplot(ts_bag[,1]) +
   autolayer(mean_fc_arima[,1], series="ARIMA") +
@@ -589,9 +528,9 @@ autoplot(ts_bag[,1]) +
   ylim(c(0, 350))+
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Training Model ARIMA untuk Item Jumbo Bag Baroque Black White",
+    title = "Training ARIMA Model for Jumbo Bag Baroque Black White",
   )+
   guides(colour=guide_legend(title="Model")) +
   theme(plot.margin = margin(1, 1, 0, 1, "cm"), legend.justification=c(0,0), legend.position=c(.01,.53))
@@ -603,9 +542,9 @@ autoplot(ts_bag[,2]) +
   ylim(c(0, 400))+
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Training Model ARIMA untuk Item Jumbo Bag Strawberry",
+    title = "Training ARIMA Model for Jumbo Bag Strawberry",
   )+
   guides(colour=guide_legend(title="Model")) +
   theme(plot.margin = margin(1, 1, 0, 1, "cm"), legend.justification=c(0,0), legend.position=c(.01,.73))
@@ -617,9 +556,9 @@ autoplot(ts_bag[,3]) +
   ylim(c(0, 250))+
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Training Model ARIMA untuk Item Jumbo Storage Bag Skulls",
+    title = "Training ARIMA Model for Jumbo Storage Bag Skulls",
   )+
   guides(colour=guide_legend(title="Model")) +
   theme(plot.margin = margin(1, 1, 0, 1, "cm"), legend.justification=c(0,0), legend.position=c(.01,.73))
@@ -631,9 +570,9 @@ autoplot(ts_bag[,4]) +
   ylim(c(0, 350))+
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Training Model ARIMA untuk Item Jumbo Storage Bag Suki",
+    title = "Training ARIMA Model for Jumbo Storage Bag Suki",
   )+
   guides(colour=guide_legend(title="Model")) +
   theme(plot.margin = margin(1, 1, 0, 1, "cm"), legend.justification=c(0,0), legend.position=c(.01,.73))
@@ -645,9 +584,9 @@ autoplot(ts_bag[,5]) +
   ylim(c(0, 350))+
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Training Model ARIMA untuk Item Lunch Bag Black Skull",
+    title = "Training ARIMA Model for Lunch Bag Black Skull",
   )+
   guides(colour=guide_legend(title="Model")) +
   theme(plot.margin = margin(1, 1, 0, 1, "cm"), legend.justification=c(0,0), legend.position=c(.01,.73))
@@ -659,9 +598,9 @@ autoplot(ts_bag[,6]) +
   ylim(c(0, 350))+
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Training Model ARIMA untuk Item Lunch Bag Cars Blue",
+    title = "Training ARIMA Model for Lunch Bag Cars Blue",
   )+
   guides(colour=guide_legend(title="Model")) +
   theme(plot.margin = margin(1, 1, 0, 1, "cm"), legend.justification=c(0,0), legend.position=c(.01,.73))
@@ -673,9 +612,9 @@ autoplot(ts_bag[,7]) +
   ylim(c(0, 300))+
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Training Model ARIMA untuk Item Lunch Bag Woodland",
+    title = "Training ARIMA Model for Lunch Bag Woodland",
   )+
   guides(colour=guide_legend(title="Model")) +
   theme(plot.margin = margin(1, 1, 0, 1, "cm"), legend.justification=c(0,0), legend.position=c(.01,.73))
@@ -687,27 +626,16 @@ autoplot(ts_bag[,8]) +
   ylim(c(0, 125))+
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Training Model ARIMA untuk Item Red Floral Feltcraft Shoulder Bag",
+    title = "Training ARIMA Model for Red Floral Feltcraft Shoulder Bag",
   )+
   guides(colour=guide_legend(title="Model")) +
   theme(plot.margin = margin(1, 1, 0, 1, "cm"), legend.justification=c(0,0), legend.position=c(.01,.73))
 ```
 
-```{r}
-## model fit
-arima_fit # menampilkan model ARIMA pada setiap item
-```
-
-```{r}
-## model fit
-sarima_fit # menampilkan model SARIMA pada setiap item
-```
-
-## Forecast
-
-Setelah mengetahui model ARIMA apa yang cocok untuk masing-masing item, Langkah terakhir adalah melakukan peramalan permintaan pada masingmasing produk dengan menggunakan model ARIMA terpilih selama 52 bulan ke depan atau selama periode satu tahun ke depan yang mana hasil peramalan permintaan dapat dilihat dalam bentuk grafik pada gambar di bawah.
+## Demand Forecast
+After determining the suitable ARIMA model for each item, the final step is to forecast the demand for each product using the selected ARIMA model for the next 52 months or the upcoming one-year period. The forecasted demand results can be observed in the graph provided below.
 
 ```{r}
 ## forecasting
@@ -725,103 +653,109 @@ p8_fc <- Arima(ts_bag[,8], order = c(0,1,3), seasonal = c(0,1,0)) %>% forecast(5
 autoplot(p1_fc) +
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Peramalan Permintaan Item Jumbo Bag Baroque Black White",
-    subtitle = "Dengan Model ARIMA (0,1,1)"
+    title = "Demand forecast for Jumbo Bag Baroque Black White item",
+    subtitle = "with ARIMA (0,1,1)"
   )
 
 ### item 2
 autoplot(p2_fc) +
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Peramalan Permintaan Item Jumbo Bag Strawberry",
-    subtitle = "Dengan Model ARIMA (3,1,0)"
+    title = "Demand forecast for Jumbo Bag Strawberry item",
+    subtitle = "with ARIMA (3,1,0)"
   )
 
 ### item 3
 autoplot(p3_fc) +
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Peramalan Permintaan Item Jumbo Storage Bag Skulls",
-    subtitle = "Dengan Model ARIMA (0,1,1)"
+    title = "Demand forecast for Jumbo Storage Bag Skulls item",
+    subtitle = "with ARIMA (0,1,1)"
   )
 
 ### item 4
 autoplot(p4_fc) +
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Peramalan Permintaan Item Jumbo Storage Bag Suki",
-    subtitle = "Dengan Model ARIMA (0,1,1)"
+    title = "Demand forecast for Jumbo Storage Bag Suki item",
+    subtitle = "with ARIMA (0,1,1)"
   )
 
 ### item 5
 autoplot(p5_fc) +
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Peramalan Permintaan Item Lunch Bag Black Skull",
-    subtitle = "Dengan Model ARIMA (0,1,1)"
+    title = "Demand forecast for Lunch Bag Black Skull item",
+    subtitle = "with ARIMA (0,1,1)"
   )
 
 ### item 6
 autoplot(p6_fc) +
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Peramalan Permintaan Item Lunch Bag Cars Blue",
-    subtitle = "Dengan Model SARIMA (2,1,0)(0,1,0)[52]"
+    title = "Demand forecast for Lunch Bag Cars Blue item",
+    subtitle = "with SARIMA (2,1,0)(0,1,0)[52]"
   )
 
 ### item 7
 autoplot(p7_fc) +
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Peramalan Permintaan Item Lunch Bag Woodland",
-    subtitle = "Dengan Model ARIMA (1,1,1)"
+    title = "Demand forecast for Lunch Bag Woodland item",
+    subtitle = "with ARIMA (1,1,1)"
   )
 
 ### item 8
 autoplot(p8_fc) +
   theme_light() + 
   labs(
-    x = "Tahun",
+    x = "Year",
     y = "Demand",
-    title = "Peramalan Permintaan Item Red Floral Feltcraft Shoulder Bag",
-    subtitle = "Dengan Model SARIMA (0,1,3)(0,1,0)[52]"
+    title = "Demand forecast for Red Floral Feltcraft Shoulder Bag item",
+    subtitle = "with SARIMA (0,1,3)(0,1,0)[52]"
   )
 
 ```
 
-# Feature Selection & Engineering untuk Model EOQ
 
-Pemodelan EOQ menggunakan data permintaan tahunan setiap item (annual demand), data biaya pembelian (purchasing cost), data biaya pemesanan (ordering cost), dan data holding rate. Langkah ini dimulai dengan mengekstrak data permintaan pada setiap item yang didapat dari hasil peramalan permintaan dengan model ARIMA. Kemudian dilakukan kalkukasi untuk mendapatkan permintaan tahunanuntuk setiap item.
 
-Setelahnya dilakukan penggabungan dan transformasi data yang mana untuk data biaya pembelian (purchasing cost), data biaya pemesanan (ordering cost), dan data holding rate didapat dari asumsi yang telah ditetapkan sehingga hasil yang diperoleh berupa data frame yang dapat dilihat pada tabel di bawah.
+# EOQ
+Economic Order Quantity (EOQ) is one of the most commonly used inventory control techniques to address two important inventory-related questions: when to place an order and how much to order. The model aims to minimize the costs incurred by the company in procurement by determining the optimal purchase quantity at the most economical cost.
+
+This model enables companies to minimize both ordering costs and storage costs. It provides a framework for determining the optimal inventory quantity, the necessary number of items to be ordered, and the frequency of ordering.
+
+## Feature Selection & Engineering for EOQ Model
+The EOQ modeling involves the annual demand data for each item, purchasing cost data, ordering cost data, and holding rate data. This process begins by extracting the demand data for each item obtained from demand forecasting using the ARIMA model. Following this, calculations are performed to determine the annual demand for each item.
+
+Afterward, the data was combined and transformed, utilizing the purchasing cost data, ordering cost data, and holding rate data derived from the predefined assumptions. The resulting output is in the form of a data frame, which is displayed in the result below.
 
 ```{r}
-## data peramalan permintaan produk
-demand <- data.frame(Produk1 = as.numeric(p1_fc$mean),
-                     Produk2 = as.numeric(p2_fc$mean),
-                     Produk3 = as.numeric(p3_fc$mean),
-                     Produk4 = as.numeric(p4_fc$mean),
-                     Produk5 = as.numeric(p5_fc$mean),
-                     Produk6 = as.numeric(p6_fc$mean),
-                     Produk7 = as.numeric(p7_fc$mean),
-                     Produk8 = as.numeric(p8_fc$mean))
+##product demand forecasting data
+demand <- data.frame(Product1 = as.numeric(p1_fc$mean),
+                     Product2 = as.numeric(p2_fc$mean),
+                     Product3 = as.numeric(p3_fc$mean),
+                     Product4 = as.numeric(p4_fc$mean),
+                     Product5 = as.numeric(p5_fc$mean),
+                     Product6 = as.numeric(p6_fc$mean),
+                     Product7 = as.numeric(p7_fc$mean),
+                     Product8 = as.numeric(p8_fc$mean))
 
-## data permintaan tahunan produk
-annual <- data.frame(Produk = c("JUMBO  BAG BAROQUE BLACK WHITE",
+##Product annual demand data
+annual <- data.frame(Product = c("JUMBO  BAG BAROQUE BLACK WHITE",
                                 "JUMBO BAG STRAWBERRY",
                                 "JUMBO STORAGE BAG SKULLS",
                                 "JUMBO STORAGE BAG SUKI",
@@ -829,16 +763,16 @@ annual <- data.frame(Produk = c("JUMBO  BAG BAROQUE BLACK WHITE",
                                 "LUNCH BAG CARS BLUE",
                                 "LUNCH BAG WOODLAND",
                                 "RED FLORAL FELTCRAFT SHOULDER BAG"),
-                     Annual_Demand = c(round(sum(demand$Produk1)),
-                                       round(sum(demand$Produk2)),
-                                       round(sum(demand$Produk3)),
-                                       round(sum(demand$Produk4)),
-                                       round(sum(demand$Produk5)),
-                                       round(sum(demand$Produk6)),
-                                       round(sum(demand$Produk7)),
-                                       round(sum(demand$Produk8))))
+                     Annual_Demand = c(round(sum(demand$Product1)),
+                                       round(sum(demand$Product2)),
+                                       round(sum(demand$Product3)),
+                                       round(sum(demand$Product4)),
+                                       round(sum(demand$Product5)),
+                                       round(sum(demand$Product6)),
+                                       round(sum(demand$Product7)),
+                                       round(sum(demand$Product8))))
 
-## menyiapkan data frame untuk pemodelan EOQ
+##prepare data frames for EOQ modeling
 for_eoq <- bag %>% 
   group_by(Description) %>% 
   summarise(
@@ -846,11 +780,10 @@ for_eoq <- bag %>%
     Price = mean(Price)
   ) 
 
-## menambahkan kolom annual demand 
-## pada data frame for_eoq dari data frame annual 
-for_eoq <- for_eoq %>% left_join(annual, by = c("Description"="Produk"))
+##adding annual demand column 
+for_eoq <- for_eoq %>% left_join(annual, by = c("Description"="Product"))
 
-## menambahkan kolom unit cost, ordering cost, dan holding rate
+##adding unit cost, ordering cost, dan holding rate column
 for_eoq <- for_eoq %>% 
   mutate(
     Purchase_Cost = round((Price*0.7), digits = 2),
@@ -858,22 +791,14 @@ for_eoq <- for_eoq %>%
     Holding_Rate = 0.15
   )
 
-for_eoq[,2:3] <- NULL # menghilangkan kolom ke 2 dan 3
-for_eoq # menampilkan data frame
+for_eoq[,2:3] <- NULL #eliminate 2nd and 3rd column
+for_eoq #result
 ```
 
-# EOQ
 
-Economic Order Quantity (EOQ) merupakan salah satu teknik pengendalian persediaan yang paling umum digunakan untuk menjawab dua pertanyaan penting terkait dengan persediaan, yakni kapan harus dilakukan pemesanan dan berapa banyak yang harus dipesan.
-
-Model ini bertujuan untuk meminimalisir biaya yang harus dikeluarkan oleh perusahaan dalam melakukan pengadaan dengan mengetahui jumlah pembelian yang optimal dengan biaya yang paling ekonomis.
-
-Dengan menggunakan model ini, perusahaan dapat mengurangi biaya pemesanan dan biaya penyimpanan. Model ini dapat digunakan membuat keputusan terhadap jumlah inventaris yang harus diadakan, jumlah item yang harus dipesan, dan frekuensi pemesanan yang harus dilakukan untuk mencapai biaya yang serendah mungkin.
-
-Pemodelan EOQ dilakukan dengan menggunakan data permintaan tahunan setiap item yang didapat setelah proses peramalan permintaan. Pada tahap ini akan dilakukan sejumlah perhitungan dengan menggunakan berbagai batasan dan asumsi yang telah disampaikan sebelumnya. Model EOQ yang dibuat dibatasi hanya untuk mencari jumlah unit optimal per pesanan dan frekuensi pemesanan untuk setiap item.
-
+## EOQ Modeling
 ```{r}
-## membuat fungsi EOQ
+##create EOQ function
 EOQ <- function(annualdemand,orderingcost,purchasecost,holdingrate,leadtime,na.rm=TRUE){
   
   EOQ <- sqrt((2*annualdemand*orderingcost)/(purchasecost*holdingrate))
@@ -882,7 +807,7 @@ EOQ <- function(annualdemand,orderingcost,purchasecost,holdingrate,leadtime,na.r
   ROP <- (annualdemand/312)*(leadtime*7)
   return(data.frame(EOQ = EOQ, order_frequency = N, time_between_order = Freq, ROP = ROP))
 }
-## menghitung EOQ
+##calculate EOQ
 eoq_bag <- for_eoq %>% 
   group_by(Description) %>% 
   mutate(
@@ -895,46 +820,31 @@ eoq_bag <- for_eoq %>%
     ROP = round(ROP)
   )
 
-eoq_bag # menampilkan hasil EOQ
+eoq_bag #final result
 ```
 
-```{r}
-inventory_level <- function(beginning_inventory,demand,replenishment,replenishment_frequency){
-  # Set the seed for reproducibility
-  set.seed(123)
-
-  # Initialize the vector to store the weekly data
-  weekly_data <- data.frame()
-
-  # Set time horizon
-  weeks <- 52
-
-  # Loop through each week
-  for (i in 1:weeks) {
-    # Calculate the ending inventory
-    #ending_inventory <- max(0, beginning_inventory - demand1[i,] + ifelse(i %% replenishment_frequency == 0, replenishment, 0))
-
-    # Calculate ending inventory
-    if (i %% replenishment_frequency == 0) {
-      ending_inventory <- beginning_inventory - demand1[i,] + replenishment
-    } else {
-      ending_inventory <- beginning_inventory - demand1[i,]
-    }
-  
-    # Store the data for this week
-    weekly_data <- rbind(weekly_data, data.frame(Week = i,
-                                                 Beginning_Inventory = beginning_inventory, 
-                                                 Ending_Inventory = ending_inventory))
-  
-    # Update the starting inventory for the next week
-    beginning_inventory <- ending_inventory
-  }
-}
+The result provided presents the outcomes of the EOQ modeling that has been conducted. The variable "Product Name" includes information regarding the name of each item, the variable "EOQ" provides details about the optimal quantity of units per order for each item, the variable "Order Frequency" contains information about the number of orders placed within a year, and the variable "Order Interval" provides information about the frequency of orders that need to be placed in weeks throughout the year.
 
 
-inventory_level
-```
+# References
+- Aamer, A., Eka Yani, L., & Alan Priyatna, I. (2021). Data Analytics in the Supply Chain Management: Review of Machine Learning Applications in Demand Forecasting. Operations and Supply Chain Management: An International Journal, 14(1), 1-13.  
+- Al-dulaime, W., & Emar, W. (2020). Analysis of Inventory Management of Laptops Spare Parts by Using XYZ Techniques and EOQ Model–A Case Study. Journal of Electronic Systems Volume, 10(1), 1.  
+- Bianto, M. A., Rahayu, S., Huda, M., & Kusrini , K. (2018). Perancangan Sistem Pendeteksi Plagiarisme Terhadap Topik Penelitian Menggunakan Metode K-Means Clustering dan Model Bayesian. SEMNASTEKNOMEDIA ONLINE, 6(1), 1-2.  
+- Dave, E., Leonardo, A., Jeanice, M., & Hanafiah, N. (2021). Forecasting Indonesia exports using a hybrid model ARIMA-LSTM. Procedia Computer Science, 175, 480-487.  
+- Douissa, M. R., & Jabeur, K. (2016). A new model for multi-criteria ABC inventory classification: PROAFTN method. Procedia Computer Science, 96, 550-559.   
+- Fattah, J., Ezzine, L., Aman, Z., El Moussami, H., & Lachhab, A. (2018). Forecasting of demand using ARIMA model. International Journal of Engineering Business Management, 10, 1-9.  
+- Heizer, J., Render, B., & Munson, C. (2017). Operations Management: Sustainability and Supply Chain Management (12th ed.). Pearson.  
+- Indriyani, F., & Irfiani, E. (2019). Clustering Data Penjualan pada Toko Perlengkapan Outdoor Menggunakan Metode K-Means. JUITA: Jurnal Informatika, 7(2), 109-113.  
+- Karafa, Z., Rumlawang, F. Y., & Sinay, L. J. (2017). Peramalan Curah Hujan Dengan Pendekatan Seasonal Autoregressive Integrated Moving Average (Sarima). Barekeng: Jurnal Ilmu Matematika dan Terapan, 11(1), 63-74.  
+- Lip, N. M., Jumery, N. S., Termizi, F. A., Mulyadi, N. A., Anuar, N., & Ithnin, H. (2020). Forecasting International Tourist Arrivals in Malaysia using SARIMA and HOLT-WINTERS Model. Journal of Tourism, Hospitality and Environment Management (JTHEM), 5(18), 41-51.  
+- Nahmias, S., & Olsen, T. L. (2015). Production and operations analysis (7th ed.). Waveland Press.  
+- Pongdatu, G., & Putra, Y. (2018). Seasonal Time Series Forecasting using SARIMA and Holt Winter’s Exponential Smoothing. IOP Conference Series: Materials Science and Engineering, 407(1).  
+- Reid, R. D., & Sanders, N. R. (2013). Operations management: an integrated approach (5th ed.). John Wiley & Sons.  
+- Stojanović, M., & Regodić, D. (2017). The significance of the integrated multicriteria ABC-XYZ method for the inventory management process. Acta Polytechnica Hungarica, 14(5), 29-48.  
+- Triyandana, G., Putri, L. A., & Umaidah, Y. (2022). Penerapan Data Mining Pengelompokan Menu Makanan dan Minuman Berdasarkan Tingkat Penjualan Menggunakan Metode K-Means. Journal of Applied Informatics and Computing, 6(1), 40-46.  
 
-
-Tabel di atas merupakan tabel yang berisi hasil pemodelan EOQ yang telah dilakukan. Pada variabel Nama Produk berisi informasi mengenai nama produk setiap item, variabel EOQ berisi informasi mengenai jumlah unit optimal per pesanan untuk setiap item, variabel Frekuensi Pemesanan berisi informasi mengenai jumlah pemesanan yang dilakukan selama satu tahun, dan variabel Waktu Antara Pemesanan berisi informasi mengenai frekuensi pemesanan yang harus dilakukan dalam satuan minggu selama satu tahun.
-
+- Clarke, M. (2021, Maret 05). How to create an ABC inventory classification model, from https://practicaldatascience.co.uk/datascience/how-to-create-an-abc-inventory-classification-model  
+- Hyndman, R. J., & Athanasopoulos, G. (2018). Forecasting: principles and practice (2nd ed.). Melbourne, Australia: Otexts, from OTexts.com/fpp2
+- Kuuse, M. ABC Analysis (80/20 Rule) in Inventory Management, from MRP easy: https://manufacturing-software-blog.mrpeasy.com/abc-analysis/
+- Udell, A. ABC Analysis with K-Means Clustering, from Medium: https://towardsdatascience.com/abc-analysis-with-k-means-clustering-10d63ffff5b
+- Salazar, R. ABC Inventory Analysis with R, from Medium: https://medium.datadriveninvestor.com/abc-inventory-analysis-with-r-d77408cb07d2
