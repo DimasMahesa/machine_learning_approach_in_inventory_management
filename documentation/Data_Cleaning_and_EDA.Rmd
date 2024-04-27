@@ -1,5 +1,5 @@
 ---
-title: "Data Cleaning & Exploratory Data Analysis"
+title: "Machine Learning Approach in Inventory Management"
 author: "Dimas Mahesa Kayun,"  
 date: "December 2023"
 output: 

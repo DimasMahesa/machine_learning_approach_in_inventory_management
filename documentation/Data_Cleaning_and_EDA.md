@@ -1,4 +1,4 @@
-Data Cleaning & Exploratory Data Analysis
+Machine Learning Approach in Inventory Management
 ================
 Dimas Mahesa Kayun,
 December 2023
